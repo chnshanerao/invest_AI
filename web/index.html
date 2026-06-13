@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chokepoint 投研系统</title>
+<link rel="stylesheet" href="/web/style.css">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<header>
+  <h1>Chokepoint 投研</h1>
+  <nav id="tabs">
+    <button class="tab active" data-tab="dashboard">投资总览</button>
+    <button class="tab" data-tab="research">研究详情</button>
+    <button class="tab" data-tab="trading">交易策略</button>
+    <button class="tab" data-tab="supplymap">产业链</button>
+    <button class="tab" data-tab="demand">需求侧</button>
+    <button class="tab" data-tab="watchlist">管理</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Dashboard -->
+  <section id="tab-dashboard" class="tab-content active">
+    <div id="macro-bar" class="macro-bar"></div>
+    <div id="stats-row" class="stats-row"></div>
+    <div class="section-title">核心标的</div>
+    <div id="cards-core" class="card-grid"></div>
+    <div class="section-title">观察标的</div>
+    <div id="cards-observe" class="card-grid"></div>
+    <div class="section-title">降级/回避</div>
+    <div id="cards-downgrade" class="card-grid"></div>
+  </section>
+
+  <!-- Research Detail -->
+  <section id="tab-research" class="tab-content">
+    <div id="research-header" class="detail-header"></div>
+    <div id="thesis-panel" class="thesis-panel"></div>
+    <div class="chart-row">
+      <div id="rev-chart" class="chart-box"><h4>季度Revenue</h4><canvas id="rev-canvas"></canvas></div>
+      <div id="margin-chart" class="chart-box"><h4>毛利率趋势</h4><canvas id="margin-canvas"></canvas></div>
+    </div>
+    <div id="valuation-panel" class="valuation-panel"></div>
+    <div id="supply-panel"></div>
+  </section>
+
+  <!-- Trading -->
+  <section id="tab-trading" class="tab-content">
+    <div id="trading-header" class="detail-header"></div>
+    <div class="chart-row">
+      <div id="price-chart" class="chart-box"></div>
+      <div id="signal-chart" class="chart-box"></div>
+    </div>
+    <div id="indicators-panel" class="indicators-panel"></div>
+    <div id="trade-advice" class="trade-advice"></div>
+  </section>
+
+  <!-- Supply Chain Map -->
+  <section id="tab-supplymap" class="tab-content">
+    <h2 style="margin-bottom:4px">AI基础设施产业链拆解</h2>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px">点击展开组件 → 点击标的进入研究详情</p>
+    <div id="supplymap-root"></div>
+  </section>
+
+  <!-- Demand -->
+  <section id="tab-demand" class="tab-content">
+    <h2 style="margin-bottom:12px">超大客户 AI CapEx 追踪</h2>
+    <div id="demand-chart" class="chart-box" style="min-height:300px"></div>
+    <table id="demand-table" class="data-table full-width">
+      <thead><tr><th>公司</th><th>季度</th><th>CapEx($B)</th><th>YoY%</th><th>AI指引</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Watchlist -->
+  <section id="tab-watchlist" class="tab-content">
+    <div class="toolbar">
+      <button id="wl-add-btn" class="btn btn-primary">+ 新增标的</button>
+      <button id="wl-collect-fundamentals" class="btn">采集:基本面</button>
+      <button id="wl-collect-trader" class="btn">采集:交易信号</button>
+    </div>
+    <div id="wl-form" class="wl-form hidden"></div>
+    <table id="wl-table" class="data-table full-width">
+      <thead><tr>
+        <th>Ticker</th><th>名称</th><th>层级</th><th>分类</th><th>研判</th>
+        <th>P/E</th><th>距高点</th><th>入场区间</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/web/app.js"></script>
+</body>
+</html>
