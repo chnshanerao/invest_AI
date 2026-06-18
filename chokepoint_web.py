@@ -45,7 +45,7 @@ async def api_ticker(request):
     fundamentals = mdb.get_fundamentals(ticker, limit=8, conn=conn)
     valuation = mdb.get_valuation(ticker, conn=conn)
     filings = mdb.get_filings(ticker, days=90, conn=conn)
-    bars = mdb.get_price_bars(ticker, days=120)
+    bars = mdb.get_price_bars(ticker, days=120, conn=conn)
     supply = conn.execute(
         "SELECT * FROM supply_chain WHERE ticker=?", (ticker,)
     ).fetchall()
