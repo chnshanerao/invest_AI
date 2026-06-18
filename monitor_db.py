@@ -159,6 +159,18 @@ CREATE TABLE IF NOT EXISTS valuation_model (
     calc_details TEXT,
     updated_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS daily_bars (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker TEXT NOT NULL,
+    date TEXT NOT NULL,
+    open REAL,
+    high REAL,
+    low REAL,
+    close REAL,
+    volume REAL,
+    UNIQUE(ticker, date)
+);
 """
 
 
@@ -505,14 +517,17 @@ def get_supply_chain(conn=None):
 # ---- Price History (read-only from price_history.db) ----
 
 def get_price_bars(ticker, days=120, conn=None):
-    c = conn or sqlite3.connect(PRICE_DB)
-    c.row_factory = sqlite3.Row
-    rows = c.execute("""SELECT * FROM daily_bars
-        WHERE ticker=? ORDER BY date DESC LIMIT ?""",
-        (ticker, days)).fetchall()
-    if not conn:
-        c.close()
-    return [dict(r) for r in reversed(rows)]
+    try:
+        c = conn or sqlite3.connect(PRICE_DB)
+        c.row_factory = sqlite3.Row
+        rows = c.execute("""SELECT * FROM daily_bars
+            WHERE ticker=? ORDER BY date DESC LIMIT ?""",
+            (ticker, days)).fetchall()
+        if not conn:
+            c.close()
+        return [dict(r) for r in reversed(rows)]
+    except sqlite3.OperationalError:
+        return []
 
 
 # ---- Fundamentals ----
