@@ -49,8 +49,17 @@ async def api_ticker(request):
     supply = conn.execute(
         "SELECT * FROM supply_chain WHERE ticker=?", (ticker,)
     ).fetchall()
+    company = mdb.get_company_profile(ticker, conn=conn)
+    vm = mdb.get_valuation_model(ticker, conn=conn)
 
     conn.close()
+    if company and company.get("raw_sections"):
+        company.pop("raw_sections", None)
+    if vm and vm.get("calc_details") and isinstance(vm["calc_details"], str):
+        try:
+            vm["calc_details"] = json.loads(vm["calc_details"])
+        except Exception:
+            pass
     return json_response({
         "info": info,
         "thesis": thesis,
@@ -60,6 +69,8 @@ async def api_ticker(request):
         "signals": signals,
         "filings": [dict(r) for r in filings],
         "supply_chain": [dict(r) for r in supply],
+        "company_profile": company,
+        "valuation_model": vm,
     })
 
 
@@ -132,6 +143,8 @@ async def api_collect(request):
         "insider": "insider_monitor.py",
         "filing": "sec_filing_monitor.py",
         "fundamentals": "fundamentals_fetcher.py",
+        "research": "company_researcher.py",
+        "valuation": "valuation_model.py",
     }
     script = scripts.get(module)
     if not script:
@@ -148,6 +161,33 @@ async def api_collect(request):
         "ok": proc.returncode == 0,
         "output": stdout.decode("utf-8", errors="replace")[-2000:],
     })
+
+
+async def api_company(request):
+    ticker = request.match_info["ticker"].upper()
+    profile = mdb.get_company_profile(ticker)
+    if not profile:
+        return json_response({"error": "No profile for " + ticker}, 404)
+    if profile.get("raw_sections"):
+        profile.pop("raw_sections", None)
+    return json_response(profile)
+
+
+async def api_settings_get(request):
+    settings = mdb.get_all_settings()
+    if "llm_api_key" in settings and settings["llm_api_key"]:
+        key = settings["llm_api_key"]
+        settings["llm_api_key"] = key[:8] + "..." + key[-4:] if len(key) > 12 else "***"
+    return json_response(settings)
+
+
+async def api_settings_post(request):
+    body = await request.json()
+    for key, value in body.items():
+        if key == "llm_api_key" and "..." in str(value):
+            continue
+        mdb.save_setting(key, value)
+    return json_response({"ok": True})
 
 
 async def index_handler(request):
@@ -168,6 +208,9 @@ def create_app():
     app.router.add_get("/api/macro", api_macro)
     app.router.add_post("/api/watchlist", api_watchlist_post)
     app.router.add_post("/api/collect/{module}", api_collect)
+    app.router.add_get("/api/company/{ticker}", api_company)
+    app.router.add_get("/api/settings", api_settings_get)
+    app.router.add_post("/api/settings", api_settings_post)
 
     app.router.add_get("/", index_handler)
     app.router.add_static("/web/", WEB_DIR, show_index=False)
