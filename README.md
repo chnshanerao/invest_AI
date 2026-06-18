@@ -88,6 +88,80 @@ python3 valuation_model.py
 python3 company_researcher.py CRDO
 ```
 
+## 部署指南
+
+### 一键部署
+
+```bash
+# 克隆仓库
+git clone https://github.com/chnshanerao/invest_AI.git
+cd invest_AI
+
+# 部署（初始化DB + 导入种子数据 + 启动服务）
+python3 deploy.py
+```
+
+部署后访问 `http://localhost:8088` 即可看到 Dashboard。
+
+### 部署后数据状态
+
+| 数据层 | 部署后状态 | 说明 |
+|--------|----------|------|
+| watchlist | ✅ 18 标的 | 种子数据 |
+| research_thesis | ✅ 18 标的 | 投资逻辑/护城河/催化剂/风险 |
+| company_profiles | ✅ 18 标的 | 公司研究档案 |
+| valuation_model | ✅ 12 标的 | 估值模型（缺数据标的为空） |
+| valuation | ✅ 15 标的 | 实时估值（需刷新） |
+| fundamentals | ✅ 112 条 | 8期基本面 |
+| daily_bars | ❌ 空 | 需采集 |
+| signals | ❌ 空 | 需采集 |
+| supply_chain | ✅ 2 条 | 10-K供应链扫描 |
+
+### 首次采集实时数据
+
+```bash
+# 一键采集（fundamentals → trader → valuation_model → insider）
+python3 deploy.py --collect
+
+# 或分步采集
+python3 fundamentals_fetcher.py    # 基本面 (SEC XBRL)
+python3 chokepoint_trader.py       # K线 + 技术信号 + 估值
+python3 valuation_model.py         # 估值模型计算
+python3 insider_monitor.py         # 内部人交易
+```
+
+### 公司深度研究（需 LLM API Key）
+
+Web 设置 Tab 配置 LLM API Key 后：
+```bash
+python3 company_researcher.py      # 对所有标的
+python3 company_researcher.py CRDO # 单个标的
+```
+
+### 定时自动更新
+
+```bash
+# 方式1: crontab (每天美东收盘后)
+0 17 * * 1-5 cd /path/to/invest_AI && python3 deploy.py --collect
+
+# 方式2: CloudCLI 定时任务
+# 在管理Tab点击"采集"按钮，或通过 API 触发:
+curl -X POST http://localhost:8088/api/collect/trader
+curl -X POST http://localhost:8088/api/collect/fundamentals
+curl -X POST http://localhost:8088/api/collect/valuation
+```
+
+### 模块说明
+
+| 模块 | 数据源 | 产出 | 采集频率 |
+|------|--------|------|---------|
+| `fundamentals_fetcher.py` | SEC XBRL | fundamentals 表 | 季报后 |
+| `chokepoint_trader.py` | Sina/K线 | daily_bars + signals + valuation | 每日 |
+| `valuation_model.py` | 本地计算 | valuation_model 表 | 按需 |
+| `company_researcher.py` | LLM + 10-K缓存 | company_profiles 表 | 按需 |
+| `insider_monitor.py` | OpenInsider | insider_tx + insider_scores | 每周 |
+| `sec_supply_chain.py` | SEC EDGAR | supply_chain 表 | 按需 |
+
 ## 项目结构
 
 ```
