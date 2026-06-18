@@ -120,6 +120,45 @@ CREATE TABLE IF NOT EXISTS demand_signals (
     ai_capex_guidance TEXT,
     date TEXT, created_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS company_profiles (
+    ticker TEXT PRIMARY KEY,
+    business_overview TEXT,
+    products_services TEXT,
+    competitive_position TEXT,
+    technology_moat TEXT,
+    customers TEXT,
+    suppliers TEXT,
+    risk_factors TEXT,
+    market_size TEXT,
+    raw_sections TEXT,
+    analysis_source TEXT DEFAULT '10k_extract',
+    last_filing TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS valuation_model (
+    ticker TEXT PRIMARY KEY,
+    current_mcap REAL,
+    current_tier TEXT,
+    ttm_revenue REAL,
+    revenue_cagr REAL,
+    gross_margin REAL,
+    bear_rev_y3 REAL, bear_ps REAL, bear_mcap REAL, bear_upside REAL,
+    base_rev_y3 REAL, base_ps REAL, base_mcap REAL, base_upside REAL,
+    bull_rev_y3 REAL, bull_ps REAL, bull_mcap REAL, bull_upside REAL,
+    is_sweet_spot INTEGER DEFAULT 0,
+    has_100b_path INTEGER DEFAULT 0,
+    micro_warning INTEGER DEFAULT 0,
+    calc_details TEXT,
+    updated_at TEXT
+);
 """
 
 
@@ -614,6 +653,136 @@ def get_demand_signals(conn=None):
     return [dict(r) for r in rows]
 
 
+# ---- Company Profiles ----
+
+def save_company_profile(ticker, business_overview=None, products_services=None,
+                         competitive_position=None, technology_moat=None,
+                         customers=None, suppliers=None, risk_factors=None,
+                         market_size=None, raw_sections=None,
+                         analysis_source='10k_extract', last_filing=None, conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    c.execute("""INSERT INTO company_profiles
+        (ticker, business_overview, products_services, competitive_position,
+         technology_moat, customers, suppliers, risk_factors, market_size,
+         raw_sections, analysis_source, last_filing, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(ticker) DO UPDATE SET
+         business_overview=COALESCE(excluded.business_overview, company_profiles.business_overview),
+         products_services=COALESCE(excluded.products_services, company_profiles.products_services),
+         competitive_position=COALESCE(excluded.competitive_position, company_profiles.competitive_position),
+         technology_moat=COALESCE(excluded.technology_moat, company_profiles.technology_moat),
+         customers=COALESCE(excluded.customers, company_profiles.customers),
+         suppliers=COALESCE(excluded.suppliers, company_profiles.suppliers),
+         risk_factors=COALESCE(excluded.risk_factors, company_profiles.risk_factors),
+         market_size=COALESCE(excluded.market_size, company_profiles.market_size),
+         raw_sections=COALESCE(excluded.raw_sections, company_profiles.raw_sections),
+         analysis_source=excluded.analysis_source,
+         last_filing=COALESCE(excluded.last_filing, company_profiles.last_filing),
+         updated_at=excluded.updated_at
+    """, (ticker, business_overview, products_services, competitive_position,
+          technology_moat, customers, suppliers, risk_factors, market_size,
+          raw_sections, analysis_source, last_filing, now))
+    if not conn:
+        c.commit()
+        c.close()
+
+
+def get_company_profile(ticker=None, conn=None):
+    c = conn or get_conn()
+    if ticker:
+        row = c.execute("SELECT * FROM company_profiles WHERE ticker=?", (ticker,)).fetchone()
+        if not conn:
+            c.close()
+        return dict(row) if row else None
+    rows = c.execute("SELECT * FROM company_profiles ORDER BY ticker").fetchall()
+    if not conn:
+        c.close()
+    return [dict(r) for r in rows]
+
+
+# ---- System Settings ----
+
+def save_setting(key, value, conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    c.execute("""INSERT INTO system_settings (key, value, updated_at)
+        VALUES (?,?,?)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
+    """, (key, value, now))
+    if not conn:
+        c.commit()
+        c.close()
+
+
+def get_setting(key, default=None, conn=None):
+    c = conn or get_conn()
+    row = c.execute("SELECT value FROM system_settings WHERE key=?", (key,)).fetchone()
+    if not conn:
+        c.close()
+    return row["value"] if row else default
+
+
+# ---- Valuation Model ----
+
+def save_valuation_model(ticker, data, conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    c.execute("""INSERT INTO valuation_model
+        (ticker, current_mcap, current_tier, ttm_revenue, revenue_cagr, gross_margin,
+         bear_rev_y3, bear_ps, bear_mcap, bear_upside,
+         base_rev_y3, base_ps, base_mcap, base_upside,
+         bull_rev_y3, bull_ps, bull_mcap, bull_upside,
+         is_sweet_spot, has_100b_path, micro_warning,
+         calc_details, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(ticker) DO UPDATE SET
+         current_mcap=excluded.current_mcap, current_tier=excluded.current_tier,
+         ttm_revenue=excluded.ttm_revenue, revenue_cagr=excluded.revenue_cagr,
+         gross_margin=excluded.gross_margin,
+         bear_rev_y3=excluded.bear_rev_y3, bear_ps=excluded.bear_ps,
+         bear_mcap=excluded.bear_mcap, bear_upside=excluded.bear_upside,
+         base_rev_y3=excluded.base_rev_y3, base_ps=excluded.base_ps,
+         base_mcap=excluded.base_mcap, base_upside=excluded.base_upside,
+         bull_rev_y3=excluded.bull_rev_y3, bull_ps=excluded.bull_ps,
+         bull_mcap=excluded.bull_mcap, bull_upside=excluded.bull_upside,
+         is_sweet_spot=excluded.is_sweet_spot, has_100b_path=excluded.has_100b_path,
+         micro_warning=excluded.micro_warning,
+         calc_details=excluded.calc_details, updated_at=excluded.updated_at
+    """, (ticker, data.get("current_mcap"), data.get("current_tier"),
+          data.get("ttm_revenue"), data.get("revenue_cagr"), data.get("gross_margin"),
+          data.get("bear_rev_y3"), data.get("bear_ps"), data.get("bear_mcap"), data.get("bear_upside"),
+          data.get("base_rev_y3"), data.get("base_ps"), data.get("base_mcap"), data.get("base_upside"),
+          data.get("bull_rev_y3"), data.get("bull_ps"), data.get("bull_mcap"), data.get("bull_upside"),
+          data.get("is_sweet_spot", 0), data.get("has_100b_path", 0), data.get("micro_warning", 0),
+          json.dumps(data.get("calc_details", {}), ensure_ascii=False) if isinstance(data.get("calc_details"), dict) else data.get("calc_details"),
+          now))
+    if not conn:
+        c.commit()
+        c.close()
+
+
+def get_valuation_model(ticker=None, conn=None):
+    c = conn or get_conn()
+    if ticker:
+        row = c.execute("SELECT * FROM valuation_model WHERE ticker=?", (ticker,)).fetchone()
+        if not conn:
+            c.close()
+        return dict(row) if row else None
+    rows = c.execute("SELECT * FROM valuation_model ORDER BY ticker").fetchall()
+    if not conn:
+        c.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_settings(conn=None):
+    c = conn or get_conn()
+    rows = c.execute("SELECT key, value FROM system_settings").fetchall()
+    if not conn:
+        c.close()
+    return {r["key"]: r["value"] for r in rows}
+
+
 # ---- Dashboard aggregate ----
 
 def get_dashboard_data():
@@ -624,16 +793,19 @@ def get_dashboard_data():
     positions = get_positions(conn)
     theses = get_thesis(conn=conn)
     valuations = get_valuation(conn=conn)
+    vm_list = get_valuation_model(conn=conn)
     demand = get_demand_signals(conn)
     conn.close()
 
     sig_map = {s["ticker"]: s for s in signals}
     val_map = {v["ticker"]: v for v in valuations} if isinstance(valuations, list) else {}
+    vm_map = {v["ticker"]: v for v in vm_list} if isinstance(vm_list, list) else {}
     for item in wl:
         t = item["ticker"]
         item["signal"] = sig_map.get(t, {})
         item["thesis"] = theses.get(t, {})
         item["valuation"] = val_map.get(t, {})
+        item["valuation_model"] = vm_map.get(t, {})
 
     return {
         "watchlist": wl,
