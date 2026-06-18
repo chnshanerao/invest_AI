@@ -11,3 +11,8 @@ investment-app/package-lock.json
 daily_report.txt
 docs/daily_report.txt
 monitor.log
+	reports/a_stock_*.txt
+	reports/report_*.txt
+	reports/*_Report.html
+	reports/ai_supply_chain.html
+	finance/
