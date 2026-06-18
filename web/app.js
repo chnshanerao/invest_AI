@@ -11,6 +11,7 @@ function $$(sel,ctx){ return [...(ctx||document).querySelectorAll(sel)]; }
 function fmt(n,d=2){ return n==null?'—':Number(n).toFixed(d); }
 function fmtK(n){ return n==null?'—':n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(0)+'M':n>=1e3?(n/1e3).toFixed(0)+'K':n.toFixed(0); }
 function fmtM(n){ return n==null?'—':Math.abs(n)>=1e9?'$'+(n/1e9).toFixed(1)+'B':Math.abs(n)>=1e6?'$'+(n/1e6).toFixed(0)+'M':'$'+fmtK(n); }
+function fmtB(n){ return n==null?'—':n>=1e9?'$'+(n/1e9).toFixed(1)+'B':n>=1e6?'$'+(n/1e6).toFixed(0)+'M':'$'+(n/1e3).toFixed(0)+'K'; }
 function toast(msg,type='success'){
   const t=$('#toast'); t.textContent=msg; t.className='toast '+type;
   t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),3000);
@@ -25,6 +26,14 @@ $$('.tab').forEach(btn=>{
     btn.classList.add('active');
     $(`#tab-${btn.dataset.tab}`).classList.add('active');
     if(btn.dataset.tab==='dashboard') loadDashboard();
+    else if(btn.dataset.tab==='research'){
+      if(currentTicker) openResearch(currentTicker);
+      else showTickerSelector('research');
+    }
+    else if(btn.dataset.tab==='trading'){
+      if(currentTicker) openTrading(currentTicker);
+      else showTickerSelector('trading');
+    }
     else if(btn.dataset.tab==='supplymap') loadSupplyMap();
     else if(btn.dataset.tab==='demand') loadDemand();
     else if(btn.dataset.tab==='watchlist') loadWatchlist();
@@ -89,6 +98,7 @@ function cardHtml(w){
   const price=sig.price!=null?fmt(sig.price,2):'—';
   const thesis=w.thesis||{};
   const val=w.valuation||{};
+  const vm=w.valuation_model||{};
   const verdict=thesis.verdict||'HOLD';
 
   let thesisLine=thesis.thesis||'';
@@ -102,6 +112,20 @@ function cardHtml(w){
     valChips+=`<span class="val-chip ${cls}">${fmt(val.pct_from_high,0)}%高点</span>`;
   }
 
+  let vmLine='';
+  if(vm.current_tier){
+    const tierIcon={Mega:'🏛️',Large:'🔵',Mid:'🟢',Small:'🟡',Micro:'🔴'}[vm.current_tier]||'⚪';
+    const curB=vm.current_mcap?fmtB(vm.current_mcap):'—';
+    const baseB=vm.base_mcap?fmtB(vm.base_mcap):'—';
+    const bullB=vm.bull_mcap?fmtB(vm.bull_mcap):'—';
+    const baseUp=vm.base_upside!=null?`${vm.base_upside>0?'+':''}${fmt(vm.base_upside,0)}%`:'';
+    let flags='';
+    if(vm.has_100b_path) flags+='<span class="vm-flag vm-flag-path">$100B路径</span>';
+    if(vm.micro_warning) flags+='<span class="vm-flag vm-flag-micro">微盘</span>';
+    if(vm.is_sweet_spot) flags+='<span class="vm-flag vm-flag-sweet">甜区</span>';
+    vmLine=`<div class="card-vm-row">${tierIcon} <span class="vm-tier">${vm.current_tier}</span> ${curB} → Base ${baseB} <span class="vm-upside">${baseUp}</span> | Bull ${bullB} ${flags}</div>`;
+  }
+
   return `<div class="ticker-card" data-ticker="${w.ticker}">
     <div class="card-top">
       <div><span class="card-ticker">${w.ticker}</span> <span class="card-name">${w.name||''}</span></div>
@@ -109,6 +133,7 @@ function cardHtml(w){
     </div>
     <div class="card-thesis">${thesisLine}</div>
     <div class="card-val-row">${valChips}</div>
+    ${vmLine}
     <div class="card-signal-row">
       <div>
         <span class="signal-badge verdict-${verdict}">${verdict}</span>
@@ -117,6 +142,44 @@ function cardHtml(w){
       <span style="font-size:15px;font-weight:600">$${price}</span>
     </div>
   </div>`;
+}
+
+async function showTickerSelector(tab){
+  if(!dashData) dashData = await api('/api/dashboard');
+  const wl = (dashData.watchlist||[]).sort((a,b)=>(a.ticker||'').localeCompare(b.ticker||''));
+  const options = wl.map(w=>{
+    const v = (w.thesis||{}).verdict||'HOLD';
+    return `<option value="${w.ticker}">${w.ticker} — ${w.name||''} [${v}]</option>`;
+  }).join('');
+  const isResearch = tab==='research';
+  const header = $(isResearch ? '#research-header' : '#trading-header');
+  header.innerHTML=`
+    <h2>${isResearch?'研究详情':'交易策略'}</h2>
+    <span class="meta">选择标的查看${isResearch?'深度研究':'交易信号'}</span>
+    <select id="ticker-select" style="font-size:14px;padding:6px 12px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
+      <option value="">— 请选择标的 —</option>
+      ${options}
+    </select>
+  `;
+  if(isResearch){
+    $('#thesis-panel').innerHTML='';
+    $('#company-profile-panel').innerHTML='';
+    $('#valuation-panel').innerHTML='';
+    $('#supply-panel').innerHTML='';
+    const rc=$('#rev-canvas'); if(rc)rc.getContext('2d').clearRect(0,0,rc.width,rc.height);
+    const mc=$('#margin-canvas'); if(mc)mc.getContext('2d').clearRect(0,0,mc.width,mc.height);
+  } else {
+    $('#price-chart').innerHTML='';
+    $('#signal-chart').innerHTML='';
+    $('#indicators-panel').innerHTML='';
+    $('#trade-advice').innerHTML='';
+  }
+  $('#ticker-select').addEventListener('change',e=>{
+    if(e.target.value){
+      if(isResearch) openResearch(e.target.value);
+      else openTrading(e.target.value);
+    }
+  });
 }
 
 // ---- Research Detail ----
@@ -130,8 +193,18 @@ async function openResearch(ticker){
   const d=await api(`/api/ticker/${ticker}`);
   renderResearchHeader(d.info,d.valuation,d.thesis);
   renderThesis(d.thesis,d.supply_chain);
+  renderCompanyProfile(d.company_profile);
+  renderValuationModelPanel(d.valuation_model);
   renderFundamentalsCharts(d.fundamentals);
   renderValuationPanel(d.valuation,d.fundamentals);
+}
+
+function tickerSwitcher(current,handler){
+  if(!dashData||!dashData.watchlist) return '';
+  const opts=dashData.watchlist.slice().sort((a,b)=>(a.ticker||'').localeCompare(b.ticker||'')).map(w=>
+    `<option value="${w.ticker}"${w.ticker===current?' selected':''}>${w.ticker}</option>`
+  ).join('');
+  return `<select onchange="${handler}(this.value)" style="font-size:13px;padding:4px 8px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px">${opts}</select>`;
 }
 
 function renderResearchHeader(info,val,thesis){
@@ -139,6 +212,7 @@ function renderResearchHeader(info,val,thesis){
   const verdict=v.verdict||'HOLD';
   const price=val?`$${fmt(val.price)}`:'—';
   $('#research-header').innerHTML=`
+    ${tickerSwitcher(info.ticker,'openResearch')}
     <h2>${info.ticker} — ${info.name||''}</h2>
     <span class="card-layer">${info.layer||''}</span>
     <span class="signal-badge verdict-${verdict}">${verdict}</span>
@@ -220,6 +294,115 @@ function renderValuationPanel(val,funds){
   p.innerHTML=items.map(i=>`<div class="val-item"><div class="val-label">${i.label}</div><div class="val-value" style="${i.cls||''}">${i.val}</div></div>`).join('');
 }
 
+function renderCompanyProfile(profile){
+  const p=$('#company-profile-panel');
+  if(!profile){p.innerHTML='<p style="color:var(--text2);padding:12px">暂无公司研究档案 — 请在管理Tab点击"采集:公司研究"</p>';return;}
+
+  function jsonList(val){
+    if(!val) return [];
+    try{ const parsed=typeof val==='string'?JSON.parse(val):val; return Array.isArray(parsed)?parsed:[parsed]; }catch(e){ return val?[val]:[]; }
+  }
+
+  const products=jsonList(profile.products_services);
+  const customers=jsonList(profile.customers);
+  const suppliers=jsonList(profile.suppliers);
+
+  function listHtml(arr,empty){
+    if(!arr.length) return `<span class="cp-text">${empty||'—'}</span>`;
+    return `<ul class="cp-list">${arr.map(i=>`<li>${i}</li>`).join('')}</ul>`;
+  }
+
+  const srcLabel = profile.analysis_source==='llm'?'LLM深度分析':'10-K关键词提取';
+
+  p.innerHTML=`<h3 style="font-size:15px;margin-bottom:10px">公司深度研究
+    <span class="cp-source">数据来源: ${srcLabel} | 最近Filing: ${profile.last_filing||'—'}</span></h3>
+
+    <div class="cp-section">
+      <div class="cp-label">一、公司做什么</div>
+      <div class="cp-text">${profile.business_overview||'—'}</div>
+    </div>
+
+    <div class="cp-grid">
+      <div class="cp-section">
+        <div class="cp-label">二、产品/服务线</div>
+        ${listHtml(products,'待分析')}
+      </div>
+      <div class="cp-section">
+        <div class="cp-label">三、主要客户</div>
+        ${listHtml(customers,'待分析')}
+      </div>
+    </div>
+
+    <div class="cp-grid">
+      <div class="cp-section">
+        <div class="cp-label">四、供应商/上游依赖</div>
+        ${listHtml(suppliers,'待分析')}
+      </div>
+      <div class="cp-section">
+        <div class="cp-label">五、市场空间</div>
+        <div class="cp-text">${profile.market_size||'—'}</div>
+      </div>
+    </div>
+
+    ${profile.competitive_position?`<div class="cp-section"><div class="cp-label">六、竞争格局</div><div class="cp-text">${profile.competitive_position}</div></div>`:''}
+    ${profile.technology_moat?`<div class="cp-section"><div class="cp-label">七、技术壁垒/护城河</div><div class="cp-text">${profile.technology_moat}</div></div>`:''}
+    ${profile.risk_factors?`<div class="cp-section"><div class="cp-label">八、核心风险</div><div class="cp-text risk-text" style="font-size:12px">${profile.risk_factors}</div></div>`:''}
+
+    ${profile.analysis_source!=='llm'?'<div class="cp-source" style="margin-top:12px;padding:8px;background:var(--bg3);border-radius:4px">提示：当前为关键词提取模式，内容为英文原文摘取。配置LLM API后可获得中文结构化深度分析。</div>':''}
+  `;
+}
+
+function renderValuationModelPanel(vm){
+  const container=$('#vm-panel');
+  if(!container) return;
+  if(!vm||!vm.current_tier){
+    container.innerHTML='<p style="color:var(--text2);padding:12px">暂无估值模型数据 — 请在管理Tab点击"估值模型"</p>';
+    return;
+  }
+  const tierIcon={Mega:'🏛️',Large:'🔵',Mid:'🟢',Small:'🟡',Micro:'🔴'}[vm.current_tier]||'⚪';
+  const cd=vm.calc_details||{};
+  const cagrPct=vm.revenue_cagr!=null?(vm.revenue_cagr*100).toFixed(1):'—';
+  const gmPct=vm.gross_margin!=null?(vm.gross_margin*100).toFixed(1):'—';
+
+  let flags='';
+  if(vm.is_sweet_spot) flags+='<span class="vm-flag vm-flag-sweet">甜区$5-50B</span>';
+  if(vm.has_100b_path) flags+='<span class="vm-flag vm-flag-path">$100B路径</span>';
+  if(vm.micro_warning) flags+='<span class="vm-flag vm-flag-micro">微盘风险</span>';
+
+  const scenarios=[
+    {name:'Bear',rev:vm.bear_rev_y3,ps:vm.bear_ps,mcap:vm.bear_mcap,upside:vm.bear_upside,cls:'vm-bear'},
+    {name:'Base',rev:vm.base_rev_y3,ps:vm.base_ps,mcap:vm.base_mcap,upside:vm.base_upside,cls:'vm-base'},
+    {name:'Bull',rev:vm.bull_rev_y3,ps:vm.bull_ps,mcap:vm.bull_mcap,upside:vm.bull_upside,cls:'vm-bull'},
+  ];
+
+  const proj=cd.base_projection||{};
+  const decayPct=proj.decay!=null?(proj.decay*100).toFixed(0):'—';
+
+  container.innerHTML=`
+    <h3>估值模型 — 3年Revenue Forward</h3>
+    <div class="vm-inputs">
+      <div class="vm-input-item"><span class="vm-input-label">当前市值</span><span class="vm-input-val">${tierIcon} ${vm.current_tier} ${fmtB(vm.current_mcap)}</span></div>
+      <div class="vm-input-item"><span class="vm-input-label">TTM Revenue</span><span class="vm-input-val">${fmtB(vm.ttm_revenue)}</span></div>
+      <div class="vm-input-item"><span class="vm-input-label">Revenue CAGR</span><span class="vm-input-val" style="color:${vm.revenue_cagr>0?'var(--green)':'var(--red)'}">${cagrPct}%</span></div>
+      <div class="vm-input-item"><span class="vm-input-label">毛利率</span><span class="vm-input-val">${gmPct}%</span></div>
+      <div class="vm-input-item"><span class="vm-input-label">增长衰减</span><span class="vm-input-val">${decayPct}%/年</span></div>
+    </div>
+    ${flags?`<div style="margin:8px 0">${flags}</div>`:''}
+    <div class="vm-scenarios">
+      ${scenarios.map(s=>`<div class="vm-scenario ${s.cls}">
+        <div class="vm-scenario-name">${s.name}</div>
+        <div class="vm-scenario-mcap">${fmtB(s.mcap)}</div>
+        <div class="vm-scenario-upside" style="color:${s.upside>0?'var(--green)':'var(--red)'}">${s.upside!=null?(s.upside>0?'+':'')+fmt(s.upside,0)+'%':'—'}</div>
+        <div class="vm-scenario-detail">Y3 Rev ${fmtB(s.rev)} × ${fmt(s.ps,1)}x PS</div>
+      </div>`).join('')}
+    </div>
+    <details style="margin-top:8px">
+      <summary style="font-size:11px;color:var(--text2);cursor:pointer">计算过程</summary>
+      <pre style="font-size:11px;color:var(--text2);margin-top:4px;white-space:pre-wrap;max-height:200px;overflow:auto">${JSON.stringify(cd,null,2)}</pre>
+    </details>
+  `;
+}
+
 // ---- Trading ----
 window.openTrading=async function(ticker){
   currentTicker=ticker;
@@ -230,16 +413,19 @@ window.openTrading=async function(ticker){
 
   const d=await api(`/api/ticker/${ticker}`);
   renderTradingHeader(d.info,d.signals[0],d.valuation);
-  renderPriceChart(d.bars);
-  renderSignalChart(d.signals);
-  renderIndicators(d.bars);
-  renderTradeAdvice(d.info,d.signals[0],d.valuation,d.bars);
+  requestAnimationFrame(()=>{
+    renderPriceChart(d.bars);
+    renderSignalChart(d.signals);
+    renderIndicators(d.bars);
+    renderTradeAdvice(d.info,d.signals[0],d.valuation,d.bars);
+  });
 };
 
 function renderTradingHeader(info,sig,val){
   const s=sig||{};
   const price=val?`$${fmt(val.price)}`:'—';
   $('#trading-header').innerHTML=`
+    ${tickerSwitcher(info.ticker,'openTrading')}
     <h2>${info.ticker} — ${info.name||''}</h2>
     <span class="signal-badge signal-${s.signal||'HOLD'}">${s.signal||'—'} ${s.total_score!=null?s.total_score:'—'}</span>
     <span class="meta">${price} | 入场: $${fmt(info.entry_low,0)}–$${fmt(info.entry_high,0)} | 止损: ${((info.stop_loss||0)*100).toFixed(0)}%</span>
@@ -253,7 +439,7 @@ function renderPriceChart(bars){
   if(!bars||!bars.length){container.innerHTML='<p style="padding:40px;color:var(--text2)">无K线数据</p>';return;}
   if(priceChart)priceChart.remove();
   priceChart=LightweightCharts.createChart(container,{
-    width:container.clientWidth-16,height:300,
+    autoSize:true,
     layout:{background:{color:'#161b22'},textColor:'#8b949e'},
     grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
@@ -284,7 +470,7 @@ function renderSignalChart(signals){
   if(!signals||!signals.length){container.innerHTML='<p style="padding:40px;color:var(--text2)">无信号数据</p>';return;}
   if(signalChart)signalChart.remove();
   signalChart=LightweightCharts.createChart(container,{
-    width:container.clientWidth-16,height:300,
+    autoSize:true,
     layout:{background:{color:'#161b22'},textColor:'#8b949e'},
     grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
     timeScale:{borderColor:'#30363d'},rightPriceScale:{borderColor:'#30363d'},
@@ -353,30 +539,30 @@ function renderTradeAdvice(info,sig,val,bars){
 // ---- Supply Chain Visual Map ----
 const SM_NODES = [
   { id:'dc', x:50, y:50, icon:'🏗️', label:'AI数据中心', desc:'GPU + 光互联 + 电力 + 冷却', type:'center' },
-  // GPU cluster — upper area
+  // GPU cluster — top area, aligned to grid rows
   { id:'gpu', x:50, y:18, icon:'🔲', label:'GPU计算集群', desc:'AI训练/推理', type:'group', parent:'dc', color:'#58a6ff' },
-  { id:'hbm',    x:18, y:6,  icon:'🧊', label:'HBM内存', tickers:['MU','HYNIX'], parent:'gpu' },
-  { id:'cowos',  x:38, y:3,  icon:'🔬', label:'先进封装', desc:'CoWoS', parent:'gpu' },
-  { id:'inspect',x:28, y:-8, icon:'🔍', label:'封装检测', tickers:['CAMT'], parent:'cowos' },
-  { id:'mask',   x:48, y:-8, icon:'🎭', label:'光掩模', tickers:['PLAB'], parent:'cowos' },
-  { id:'serdes', x:62, y:3,  icon:'⚡', label:'SerDes', tickers:['CRDO'], parent:'gpu' },
-  { id:'power',  x:78, y:6,  icon:'🔌', label:'功率模块', tickers:['VICR'], parent:'gpu' },
-  { id:'pkgip',  x:56, y:10, icon:'📐', label:'封装IP', tickers:['ADEA'], parent:'gpu' },
-  // Optical — left area
-  { id:'optical', x:15, y:50, icon:'💡', label:'光互联网络', desc:'机架/集群互联', type:'group', parent:'dc', color:'#3fb950' },
-  { id:'xcvr',    x:4,  y:38, icon:'📡', label:'光模块800G', tickers:['COHR'], parent:'optical' },
-  { id:'laser',   x:4,  y:52, icon:'🔴', label:'EML激光器', tickers:['LITE'], parent:'optical' },
-  { id:'inp',     x:4,  y:64, icon:'💎', label:'InP衬底', tickers:['AXTI'], parent:'optical' },
-  // Nuclear — right area
-  { id:'nuclear', x:85, y:50, icon:'☢️', label:'电力(核能)', desc:'24/7供电', type:'group', parent:'dc', color:'#d29922' },
-  { id:'smr',     x:96, y:38, icon:'⚛️', label:'SMR', tickers:['SMR'], parent:'nuclear' },
-  { id:'fuel',    x:96, y:50, icon:'🟡', label:'核燃料', tickers:['LEU'], parent:'nuclear' },
-  { id:'nksvc',   x:96, y:62, icon:'🚛', label:'核服务', tickers:['NNE'], parent:'nuclear' },
-  { id:'grid',    x:88, y:72, icon:'🔧', label:'电网', tickers:['WLDN'], parent:'nuclear' },
+  { id:'hbm',    x:20, y:6,  icon:'🧊', label:'HBM内存', tickers:['MU','HYNIX'], parent:'gpu' },
+  { id:'cowos',  x:38, y:6,  icon:'🔬', label:'先进封装', desc:'CoWoS', parent:'gpu' },
+  { id:'serdes', x:62, y:6,  icon:'⚡', label:'SerDes', tickers:['CRDO'], parent:'gpu' },
+  { id:'power',  x:80, y:6,  icon:'🔌', label:'功率模块', tickers:['VICR'], parent:'gpu' },
+  { id:'inspect',x:28, y:32, icon:'🔍', label:'封装检测', tickers:['CAMT'], parent:'cowos' },
+  { id:'mask',   x:46, y:32, icon:'🎭', label:'光掩模', tickers:['PLAB'], parent:'cowos' },
+  { id:'pkgip',  x:64, y:32, icon:'📐', label:'封装IP', tickers:['ADEA'], parent:'gpu' },
+  // Optical — left column
+  { id:'optical', x:16, y:50, icon:'💡', label:'光互联网络', desc:'机架/集群互联', type:'group', parent:'dc', color:'#3fb950' },
+  { id:'xcvr',    x:10, y:36, icon:'📡', label:'光模块800G', tickers:['COHR'], parent:'optical' },
+  { id:'laser',   x:10, y:62, icon:'🔴', label:'EML激光器', tickers:['LITE'], parent:'optical' },
+  { id:'inp',     x:10, y:76, icon:'💎', label:'InP衬底', tickers:['AXTI'], parent:'optical' },
+  // Nuclear — right column
+  { id:'nuclear', x:84, y:50, icon:'☢️', label:'电力(核能)', desc:'24/7供电', type:'group', parent:'dc', color:'#d29922' },
+  { id:'smr',     x:90, y:36, icon:'⚛️', label:'SMR', tickers:['SMR'], parent:'nuclear' },
+  { id:'fuel',    x:90, y:62, icon:'🟡', label:'核燃料', tickers:['LEU'], parent:'nuclear' },
+  { id:'nksvc',   x:84, y:76, icon:'🚛', label:'核服务', tickers:['NNE'], parent:'nuclear' },
+  { id:'grid',    x:90, y:82, icon:'🔧', label:'电网接入', tickers:['WLDN'], parent:'nuclear' },
   // Materials — bottom area
-  { id:'materials', x:50, y:84, icon:'🧪', label:'基础材料', desc:'半导体上游', type:'group', parent:'dc', color:'#f85149' },
-  { id:'silicon', x:38, y:95, icon:'🪨', label:'硅金属', tickers:['GSM'], parent:'materials' },
-  { id:'mosfet',  x:62, y:95, icon:'🔋', label:'MOSFET', tickers:['MX'], parent:'materials' },
+  { id:'materials', x:50, y:80, icon:'🧪', label:'基础材料', desc:'半导体上游', type:'group', parent:'dc', color:'#f85149' },
+  { id:'silicon', x:38, y:90, icon:'🪨', label:'硅金属', tickers:['GSM'], parent:'materials' },
+  { id:'mosfet',  x:62, y:90, icon:'🔋', label:'MOSFET', tickers:['MX'], parent:'materials' },
 ];
 
 let supplyMapData = null;
@@ -396,7 +582,7 @@ async function loadSupplyMap(){
 
 function renderSupplyMapVisual(){
   const container = $('#supplymap-root');
-  const W = 1000, H = 720;
+  const W = 1000, H = 900;
   const nodeMap = {};
   SM_NODES.forEach(n=> nodeMap[n.id]=n);
 
@@ -539,9 +725,10 @@ async function loadWatchlist(){
           <button class="btn" onclick="openTrading('${w.ticker}')">交易</button></td>
     </tr>`;
   }).join('');
+  loadSettings();
 }
 
-['fundamentals','trader'].forEach(mod=>{
+['fundamentals','trader','research','valuation'].forEach(mod=>{
   $(`#wl-collect-${mod}`).addEventListener('click',async()=>{
     toast(`正在采集 ${mod}...`);
     const r=await api(`/api/collect/${mod}`,{method:'POST'});
@@ -583,5 +770,28 @@ window.saveNewTicker=async function(){
 };
 
 window.openResearch=openResearch;
+
+// ---- Settings ----
+async function loadSettings(){
+  const s=await api('/api/settings');
+  const form=$('#settings-form');
+  form.innerHTML=`
+    <div class="sf-group"><label>LLM API Key</label><input type="password" id="sf-apikey" value="${s.llm_api_key||''}" placeholder="sk-..."></div>
+    <div class="sf-group"><label>API URL</label><input type="text" id="sf-apiurl" value="${s.llm_api_url||'https://api.anthropic.com/v1'}" placeholder="https://api.anthropic.com/v1"></div>
+    <div class="sf-group"><label>Model</label><input type="text" id="sf-model" value="${s.llm_model||'claude-sonnet-4-20250514'}" placeholder="claude-sonnet-4-20250514"></div>
+    <div class="form-actions"><button class="btn btn-primary" onclick="saveSettings()">保存设置</button></div>
+  `;
+}
+
+window.saveSettings=async function(){
+  const data={
+    llm_api_key:$('#sf-apikey').value.trim(),
+    llm_api_url:$('#sf-apiurl').value.trim(),
+    llm_model:$('#sf-model').value.trim(),
+  };
+  await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  toast('设置已保存');
+};
+
 loadDashboard();
 })();
