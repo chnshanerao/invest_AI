@@ -58,25 +58,35 @@ def import_seed():
         return
 
     conn = sqlite3.connect(DB_PATH)
+    # 用 executescript 执行 .dump 文件，跳过 CREATE TABLE（已由 init_db 创建）
     with open(SEED_SQL, 'r') as f:
         sql = f.read()
-    statements = [s.strip() for s in sql.split(';\n') if s.strip()]
-    for stmt in statements:
-        try:
-            conn.execute(stmt + ';')
-        except sqlite3.OperationalError as e:
-            if 'UNIQUE constraint' in str(e) or 'duplicate' in str(e).lower():
-                pass  # 已存在，跳过
-            else:
-                print(f"  ⚠️  {e}")
-
+    # 过滤掉 CREATE TABLE 和 CREATE INDEX 语句
+    lines = sql.split('\n')
+    filtered = []
+    skip_block = False
+    for line in lines:
+        if line.startswith('CREATE TABLE') or line.startswith('CREATE INDEX'):
+            skip_block = True
+        if skip_block:
+            if line.rstrip().endswith(';'):
+                skip_block = False
+            continue
+        filtered.append(line)
+    conn.executescript('\n'.join(filtered))
     conn.commit()
-    # 统计
-    tables = ['watchlist', 'research_thesis', 'company_profiles',
-              'valuation_model', 'supply_chain', 'valuation', 'fundamentals']
-    for t in tables:
-        count = conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
-        print(f"  📊 {t}: {count} 条")
+
+    # 统计所有有数据的表
+    tables = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).fetchall()
+    for (t,) in tables:
+        try:
+            count = conn.execute(f"SELECT count(*) FROM [{t}]").fetchone()[0]
+            if count > 0:
+                print(f"  📊 {t}: {count} 条")
+        except Exception:
+            pass
     conn.close()
     print("  ✅ 种子数据导入完成")
 
