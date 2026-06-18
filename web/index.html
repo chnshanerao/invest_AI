@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chokepoint 投研系统</title>
-<link rel="stylesheet" href="/web/style.css">
+<link rel="stylesheet" href="/web/style.css?v=4">
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -16,6 +16,7 @@
     <button class="tab" data-tab="trading">交易策略</button>
     <button class="tab" data-tab="supplymap">产业链</button>
     <button class="tab" data-tab="demand">需求侧</button>
+    <button class="tab" data-tab="methodology">方法论</button>
     <button class="tab" data-tab="watchlist">管理</button>
   </nav>
 </header>
@@ -37,6 +38,8 @@
   <section id="tab-research" class="tab-content">
     <div id="research-header" class="detail-header"></div>
     <div id="thesis-panel" class="thesis-panel"></div>
+    <div id="company-profile-panel" class="thesis-panel" style="margin-top:12px"></div>
+    <div id="vm-panel" class="thesis-panel" style="margin-top:12px"></div>
     <div class="chart-row">
       <div id="rev-chart" class="chart-box"><h4>季度Revenue</h4><canvas id="rev-canvas"></canvas></div>
       <div id="margin-chart" class="chart-box"><h4>毛利率趋势</h4><canvas id="margin-canvas"></canvas></div>
@@ -73,12 +76,98 @@
     </table>
   </section>
 
+  <!-- Methodology -->
+  <section id="tab-methodology" class="tab-content">
+    <div class="method-content">
+      <h2>投资决策链</h2>
+      <p class="method-desc">本系统基于 <b>Serenity瓶颈投资法（Chokepoint Theory）</b>，核心理念：在AI基础设施供应链中找到物理瓶颈 — 不可绕过、不可替代、供不应求的环节。</p>
+      <div class="method-chain">
+        <span class="mc-step mc-active">产业链研究</span><span class="mc-arrow">→</span>
+        <span class="mc-step">估值判断</span><span class="mc-arrow">→</span>
+        <span class="mc-step">技术面择时</span><span class="mc-arrow">→</span>
+        <span class="mc-step">交易指令</span>
+      </div>
+
+      <h3>一、选股方法论 — Serenity五问筛选法</h3>
+      <table class="data-table full-width">
+        <thead><tr><th>#</th><th>问题</th><th>目的</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>这个组件是否在物理上不可跳过？</td><td>确认瓶颈位置（如：光掩模→芯片制造必须经过）</td></tr>
+          <tr><td>2</td><td>是否只有1-2家供应商？</td><td>寡头/垄断=定价权</td></tr>
+          <tr><td>3</td><td>下游客户是否有替代选择？</td><td>锁定效应</td></tr>
+          <tr><td>4</td><td>产能是否能快速扩张？</td><td>不能=瓶颈持续</td></tr>
+          <tr><td>5</td><td>管理层是否在买入自家股票？</td><td>仅CEO买入为弱正信号，卖出不说明问题</td></tr>
+        </tbody>
+      </table>
+
+      <h3>二、技术面信号评分系统（0-100分）</h3>
+      <p class="method-desc">信号评分由5个因子加权合成，每日自动计算。分数越高=多因子共振越强=入场信心越大。</p>
+      <table class="data-table full-width">
+        <thead><tr><th>因子</th><th>分值</th><th>计算方法</th></tr></thead>
+        <tbody>
+          <tr><td><b>趋势（SMA）</b></td><td>0-30</td><td>多头排列(价格>SMA20>SMA50>SMA200)=30分；站上SMA20=10分；SMA20上穿SMA50=+5分</td></tr>
+          <tr><td><b>动量（MACD/RSI）</b></td><td>0-25</td><td>MACD柱>0且金叉=+15分；RSI从超卖(<30)反弹=+15分；RSI超买(>70)=-10分</td></tr>
+          <tr><td><b>波动（Bollinger）</b></td><td>0-20</td><td>价格触下轨后反弹=+15分；价格在中轨(SMA20)上方=+10分</td></tr>
+          <tr><td><b>量价</b></td><td>0-15</td><td>放量上涨(量比>1.5且上涨)=+15分；缩量回调=+10分；放量下跌=-5分</td></tr>
+          <tr><td><b>入场区间</b></td><td>0-10</td><td>价格在预设入场区间内=+10分；低于区间=+8分</td></tr>
+        </tbody>
+      </table>
+
+      <h3>三、信号定义</h3>
+      <table class="data-table full-width">
+        <thead><tr><th>总分</th><th>信号</th><th>含义</th><th>建议操作</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--green);font-weight:700">≥75</td><td><span class="signal-badge signal-STRONG_BUY">STRONG_BUY</span></td><td>多因子共振</td><td>建议入场，可一次性建仓</td></tr>
+          <tr><td style="color:var(--green)">60-74</td><td><span class="signal-badge signal-BUY">BUY</span></td><td>偏多</td><td>可分批建仓（30%/35%/35%）</td></tr>
+          <tr><td>40-59</td><td><span class="signal-badge signal-HOLD">HOLD</span></td><td>中性</td><td>持有观望，等待更好入场点</td></tr>
+          <tr><td style="color:var(--yellow)">25-39</td><td><span class="signal-badge signal-CAUTION">CAUTION</span></td><td>偏空</td><td>谨慎，不建议新建仓</td></tr>
+          <tr><td style="color:var(--red)">＜25</td><td><span class="signal-badge signal-SELL">SELL</span></td><td>多空转向</td><td>回避，已持仓考虑止损</td></tr>
+        </tbody>
+      </table>
+
+      <h3>四、估值指标</h3>
+      <table class="data-table full-width">
+        <thead><tr><th>指标</th><th>数据来源</th><th>解读</th></tr></thead>
+        <tbody>
+          <tr><td><b>P/E(TTM)</b></td><td>Sina Finance 实时</td><td>市盈率，<15为便宜(绿)，>50为贵(红)</td></tr>
+          <tr><td><b>P/S(TTM)</b></td><td>市值÷近4季Revenue</td><td>市销率，适用高增长公司，>30x需警惕</td></tr>
+          <tr><td><b>距52周高点%</b></td><td>Sina Finance</td><td>跌幅越大=越便宜，<-30%为绿色</td></tr>
+          <tr><td><b>毛利率趋势</b></td><td>SEC XBRL季度数据</td><td>GrossProfit÷Revenue，趋势比绝对值重要</td></tr>
+          <tr><td><b>Revenue YoY</b></td><td>SEC XBRL同期对比</td><td>收入同比增速，>20%为高增长(绿)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>五、数据来源</h3>
+      <table class="data-table full-width">
+        <thead><tr><th>数据类型</th><th>API来源</th><th>更新频率</th></tr></thead>
+        <tbody>
+          <tr><td>日K线(OHLCV)</td><td>Sina Finance</td><td>每日</td></tr>
+          <tr><td>实时行情/估值</td><td>Sina Finance (hq.sinajs.cn)</td><td>实时</td></tr>
+          <tr><td>季度基本面</td><td>SEC EDGAR XBRL API</td><td>季度</td></tr>
+          <tr><td>公司深度研究</td><td>SEC 10-K年报 + LLM分析</td><td>年度</td></tr>
+          <tr><td>宏观指标</td><td>Sina (SOX/VXX/USD-JPY)</td><td>每日</td></tr>
+          <tr><td>供应链扫描</td><td>SEC 10-K全文关键词</td><td>年度</td></tr>
+        </tbody>
+      </table>
+
+      <h3>六、内部人交易信号说明</h3>
+      <div class="method-box">
+        <p><b>学术共识（Seyhun 1998, Lakonishok & Lee 2001）：</b></p>
+        <p>内部人<b>买入</b>是<span style="color:var(--green)">强看多信号</span>（年化超额收益11.2%），集群买入效果2倍。</p>
+        <p>内部人<b>卖出</b>是<span style="color:var(--text2)">噪音信号</span> — 科技高管95%+净资产在自家股票，卖出通常是流动性/分散化需要，不代表看空。</p>
+        <p style="font-size:12px;color:var(--text2);margin-top:4px">"Insiders buy for one reason; they sell for many." — 内部人买入只有一个原因（看好），卖出有无数原因。</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Watchlist -->
   <section id="tab-watchlist" class="tab-content">
     <div class="toolbar">
       <button id="wl-add-btn" class="btn btn-primary">+ 新增标的</button>
       <button id="wl-collect-fundamentals" class="btn">采集:基本面</button>
       <button id="wl-collect-trader" class="btn">采集:交易信号</button>
+      <button id="wl-collect-research" class="btn">采集:公司研究</button>
+      <button id="wl-collect-valuation" class="btn">估值模型</button>
     </div>
     <div id="wl-form" class="wl-form hidden"></div>
     <table id="wl-table" class="data-table full-width">
@@ -88,10 +177,14 @@
       </tr></thead>
       <tbody></tbody>
     </table>
+    <div id="settings-panel" class="settings-panel">
+      <h3>系统设置</h3>
+      <div class="settings-form" id="settings-form"></div>
+    </div>
   </section>
 </main>
 
 <div id="toast" class="toast hidden"></div>
-<script src="/web/app.js"></script>
+<script src="/web/app.js?v=4"></script>
 </body>
 </html>
