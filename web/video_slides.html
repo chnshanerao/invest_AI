@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRDO EP.1 — 视频素材</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0a0e17;--bg2:#131926;--bg3:#1c2538;--border:#2a3548;--text:#e8ecf4;--text2:#7a8ba8;--green:#00d26a;--red:#ff4757;--blue:#4a9eff;--yellow:#ffc048;--orange:#ff8c42;--purple:#a78bfa;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+
+.page{max-width:1200px;margin:0 auto;padding:40px 32px;}
+.page-title{font-size:13px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+h1{font-size:36px;font-weight:900;margin-bottom:40px;line-height:1.2;}
+h1 span{color:var(--blue);}
+
+.slide{
+  background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+  padding:40px;margin-bottom:32px;position:relative;overflow:hidden;
+  min-height:400px;
+}
+.slide::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple),var(--green));
+}
+.slide-label{
+  position:absolute;top:16px;right:20px;font-size:11px;color:var(--text2);
+  background:var(--bg3);padding:4px 12px;border-radius:20px;letter-spacing:1px;
+}
+.slide h2{font-size:24px;font-weight:700;margin-bottom:24px;}
+.slide h3{font-size:16px;font-weight:600;color:var(--blue);margin:20px 0 12px;}
+
+/* ---- Slide 1: Supply Chain ---- */
+.chain-flow{display:flex;align-items:center;gap:0;justify-content:center;flex-wrap:wrap;margin:20px 0;}
+.chain-node{
+  text-align:center;padding:16px 20px;border-radius:12px;min-width:120px;
+  border:2px solid var(--border);background:var(--bg3);position:relative;
+}
+.chain-node.highlight{border-color:var(--blue);background:rgba(74,158,255,0.1);box-shadow:0 0 24px rgba(74,158,255,0.15);}
+.chain-node .icon{font-size:32px;display:block;margin-bottom:6px;}
+.chain-node .label{font-size:14px;font-weight:700;}
+.chain-node .sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.chain-arrow{font-size:24px;color:var(--text2);margin:0 4px;flex-shrink:0;}
+
+/* ---- Slide 2: Market Share ---- */
+.pie-container{display:flex;align-items:center;gap:48px;justify-content:center;margin:20px 0;}
+.pie-ring{position:relative;width:260px;height:260px;}
+.pie-ring svg{width:100%;height:100%;}
+.pie-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;
+}
+.pie-center .big{font-size:52px;font-weight:900;color:var(--blue);}
+.pie-center .sub{font-size:14px;color:var(--text2);}
+.pie-legend{font-size:14px;}
+.pie-legend .leg-item{display:flex;align-items:center;gap:10px;margin:8px 0;padding:8px 16px;border-radius:8px;background:var(--bg3);}
+.leg-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+.leg-name{font-weight:600;flex:1;}
+.leg-val{font-weight:700;color:var(--text2);}
+
+/* ---- Slide 3: Revenue ---- */
+.bar-container{display:flex;align-items:flex-end;gap:12px;height:280px;padding:20px 0;margin:0 auto;max-width:700px;}
+.bar-item{flex:1;display:flex;flex-direction:column;align-items:center;}
+.bar-rect{width:100%;max-width:72px;border-radius:8px 8px 0 0;transition:height 0.5s;position:relative;}
+.bar-rect .bar-val{
+  position:absolute;top:-28px;left:50%;transform:translateX(-50%);
+  font-size:13px;font-weight:700;white-space:nowrap;
+}
+.bar-label{font-size:12px;color:var(--text2);margin-top:8px;text-align:center;}
+.bar-yoy{font-size:11px;color:var(--green);font-weight:600;margin-top:2px;}
+.bar-baseline{width:100%;border-top:1px dashed var(--border);margin-top:auto;}
+
+/* ---- Slide 4: Margin ---- */
+.line-chart{position:relative;height:200px;margin:20px 0;}
+.line-chart svg{width:100%;height:100%;}
+.margin-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:20px;}
+.margin-item{text-align:center;padding:12px 4px;border-radius:8px;background:var(--bg3);}
+.margin-item .mv{font-size:20px;font-weight:700;}
+.margin-item .ml{font-size:10px;color:var(--text2);margin-top:2px;}
+
+/* ---- Slide 5: Customer ---- */
+.customer-compare{display:grid;grid-template-columns:1fr 80px 1fr;gap:16px;align-items:center;margin:20px 0;}
+.cust-pie{text-align:center;}
+.cust-pie .title{font-size:14px;color:var(--text2);margin-bottom:12px;font-weight:600;}
+.cust-arrow-mid{text-align:center;font-size:40px;color:var(--blue);}
+.cust-bar{height:32px;border-radius:6px;display:flex;overflow:hidden;margin:6px 0;}
+.cust-seg{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+
+/* ---- Slide 6: Valuation ---- */
+.val-scenarios{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0;}
+.val-card{
+  padding:24px;border-radius:12px;text-align:center;
+  border:2px solid var(--border);background:var(--bg3);
+}
+.val-card.bear{border-color:rgba(255,71,87,0.4);}
+.val-card.base{border-color:rgba(74,158,255,0.4);background:rgba(74,158,255,0.05);}
+.val-card.bull{border-color:rgba(0,210,106,0.4);}
+.val-card .sc-name{font-size:14px;color:var(--text2);font-weight:600;margin-bottom:8px;}
+.val-card .sc-mcap{font-size:32px;font-weight:900;}
+.val-card.bear .sc-mcap{color:var(--red);}
+.val-card.base .sc-mcap{color:var(--blue);}
+.val-card.bull .sc-mcap{color:var(--green);}
+.val-card .sc-upside{font-size:18px;font-weight:700;margin:4px 0;}
+.val-card .sc-detail{font-size:12px;color:var(--text2);margin-top:8px;line-height:1.5;}
+.val-current{
+  text-align:center;margin:20px 0 8px;padding:16px;
+  background:var(--bg3);border-radius:8px;font-size:15px;
+}
+.val-current b{font-size:28px;color:var(--yellow);}
+
+.formula-box{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:20px 24px;margin:16px 0;font-family:'Courier New',monospace;font-size:14px;line-height:1.8;
+  color:var(--text2);
+}
+.formula-box b{color:var(--text);}
+.formula-box .hl{color:var(--blue);}
+
+/* ---- Slide 7: Moat vs Risk ---- */
+.split-panel{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.panel{padding:24px;border-radius:12px;background:var(--bg3);}
+.panel.moat{border-left:4px solid var(--green);}
+.panel.risk{border-left:4px solid var(--red);}
+.panel h3{margin-top:0;}
+.panel ul{list-style:none;padding:0;}
+.panel li{padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:14px;line-height:1.5;}
+.panel li:last-child{border:none;}
+.panel li strong{display:block;font-size:13px;margin-bottom:2px;}
+
+/* ---- Slide 8: Verdict ---- */
+.verdict-box{
+  text-align:center;padding:40px;
+}
+.verdict-badge{
+  display:inline-block;font-size:48px;font-weight:900;
+  padding:12px 48px;border-radius:12px;
+  background:var(--bg3);border:3px solid var(--yellow);color:var(--yellow);
+  letter-spacing:4px;
+}
+.verdict-reason{font-size:18px;color:var(--text2);margin-top:16px;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.6;}
+.entry-zone{
+  margin-top:24px;padding:16px 32px;background:rgba(0,210,106,0.08);
+  border:1px solid rgba(0,210,106,0.3);border-radius:8px;display:inline-block;
+}
+.entry-zone .ez-label{font-size:13px;color:var(--text2);}
+.entry-zone .ez-range{font-size:28px;font-weight:900;color:var(--green);}
+
+/* ---- Signal Path ---- */
+.signal-path{
+  display:flex;align-items:center;gap:0;margin:24px 0;padding:24px;
+  background:var(--bg);border-radius:12px;overflow-x:auto;
+}
+.sp-stage{
+  text-align:center;padding:12px 24px;position:relative;flex-shrink:0;
+}
+.sp-stage .sp-icon{font-size:24px;margin-bottom:4px;}
+.sp-stage .sp-text{font-size:12px;color:var(--text2);}
+.sp-stage .sp-val{font-size:14px;font-weight:700;margin-top:2px;}
+.sp-arrow{color:var(--red);font-size:20px;flex-shrink:0;}
+.sp-stage.good .sp-val{color:var(--green);}
+.sp-stage.bad .sp-val{color:var(--red);}
+
+/* Disclaimer */
+.disclaimer{
+  text-align:center;padding:24px;margin-top:40px;
+  font-size:12px;color:var(--text2);border-top:1px solid var(--border);
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="page-title">AI Supply Chain Chokepoint Hunter EP.1</p>
+  <h1>CRDO — AI数据中心的<span>"神经纤维"</span></h1>
+
+  <!-- ========== Slide 1: Supply Chain Position ========== -->
+  <div class="slide" id="s1">
+    <span class="slide-label">SLIDE 1 / 产业链定位</span>
+    <h2>CRDO在AI产业链的位置</h2>
+    <div class="chain-flow">
+      <div class="chain-node"><span class="icon">🔲</span><span class="label">GPU</span><span class="sub">NVIDIA</span></div>
+      <span class="chain-arrow">→</span>
+      <div class="chain-node"><span class="icon">🧊</span><span class="label">HBM内存</span><span class="sub">MU / SK海力士</span></div>
+      <span class="chain-arrow">→</span>
+      <div class="chain-node highlight"><span class="icon">⚡</span><span class="label">SerDes连接</span><span class="sub">CRDO 73%</span></div>
+      <span class="chain-arrow">→</span>
+      <div class="chain-node"><span class="icon">💡</span><span class="label">光互联</span><span class="sub">COHR / LITE</span></div>
+      <span class="chain-arrow">→</span>
+      <div class="chain-node"><span class="icon">☢️</span><span class="label">电力</span><span class="sub">LEU / SMR</span></div>
+    </div>
+
+    <h3>信号传输路径</h3>
+    <div class="signal-path">
+      <div class="sp-stage"><div class="sp-icon">🔲</div><div class="sp-text">GPU发出</div><div class="sp-val">800G信号</div></div>
+      <span class="sp-arrow">→</span>
+      <div class="sp-stage"><div class="sp-icon">〰️</div><div class="sp-text">铜缆 5-7m</div><div class="sp-val">信号衰减</div></div>
+      <span class="sp-arrow bad">✗</span>
+      <div class="sp-stage bad"><div class="sp-icon">📉</div><div class="sp-text">无法识别</div><div class="sp-val">噪声</div></div>
+      <span class="sp-arrow" style="color:var(--blue)">→</span>
+      <div class="sp-stage" style="border:2px solid var(--blue);border-radius:10px;background:rgba(74,158,255,0.08)">
+        <div class="sp-icon">⚡</div><div class="sp-text">CRDO SerDes</div><div class="sp-val" style="color:var(--blue)">信号调理</div>
+      </div>
+      <span class="sp-arrow good">✓</span>
+      <div class="sp-stage good"><div class="sp-icon">✅</div><div class="sp-text">完美传输</div><div class="sp-val">800G恢复</div></div>
+    </div>
+    <p style="text-align:center;font-size:15px;color:var(--text2);margin-top:12px"><b style="color:var(--text)">GPU是大脑，CRDO是神经纤维里的芯片</b> — 没有它，GPU集群就是一堆互相看不见的孤岛</p>
+  </div>
+
+  <!-- ========== Slide 2: Market Share ========== -->
+  <div class="slide" id="s2">
+    <span class="slide-label">SLIDE 2 / 市场份额</span>
+    <h2>AEC有源电缆市场份额</h2>
+    <div class="pie-container">
+      <div class="pie-ring">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="80" fill="none" stroke="var(--bg3)" stroke-width="28"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="var(--blue)" stroke-width="28"
+            stroke-dasharray="367 503" stroke-dashoffset="126" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="var(--purple)" stroke-width="28"
+            stroke-dasharray="75 503" stroke-dashoffset="-241" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="var(--text2)" stroke-width="28"
+            stroke-dasharray="60 503" stroke-dashoffset="-316" stroke-linecap="round"/>
+        </svg>
+        <div class="pie-center">
+          <div class="big">73%</div>
+          <div class="sub">CRDO</div>
+        </div>
+      </div>
+      <div class="pie-legend">
+        <div class="leg-item"><span class="leg-dot" style="background:var(--blue)"></span><span class="leg-name">Credo (CRDO)</span><span class="leg-val">~73%</span></div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--purple)"></span><span class="leg-name">Marvell (Golden Cable)</span><span class="leg-val">~15%</span></div>
+        <div class="leg-item"><span class="leg-dot" style="background:var(--text2)"></span><span class="leg-name">Others</span><span class="leg-val">~12%</span></div>
+        <p style="font-size:12px;color:var(--text2);margin-top:16px;max-width:240px;line-height:1.5">Marvell 2025年才入场<br>Broadcom做SerDes IP但不卖独立AEC</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Slide 3: Revenue Growth ========== -->
+  <div class="slide" id="s3">
+    <span class="slide-label">SLIDE 3 / 收入爆发</span>
+    <h2>季度收入增长 — 不到两年翻7倍</h2>
+    <div class="bar-container">
+      <div class="bar-item">
+        <div class="bar-rect" style="height:40px;background:var(--text2)"><span class="bar-val">$60M</span></div>
+        <div class="bar-label">Q2'24</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-rect" style="height:48px;background:var(--text2)"><span class="bar-val">$72M</span></div>
+        <div class="bar-label">Q3'24</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-rect" style="height:90px;background:var(--blue)"><span class="bar-val">$135M</span></div>
+        <div class="bar-label">Q4'24</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-rect" style="height:150px;background:var(--blue)"><span class="bar-val">$223M</span></div>
+        <div class="bar-label">Q2'25</div>
+        <div class="bar-yoy">+274%</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-rect" style="height:180px;background:var(--blue)"><span class="bar-val">$268M</span></div>
+        <div class="bar-label">Q3'25</div>
+        <div class="bar-yoy">+272%</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-rect" style="height:270px;background:linear-gradient(180deg,var(--green),var(--blue))"><span class="bar-val" style="color:var(--green)">$407M</span></div>
+        <div class="bar-label">Q4'25</div>
+        <div class="bar-yoy">+201%</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px">
+      <span style="font-size:16px;color:var(--text2)">TTM Revenue: </span>
+      <span style="font-size:28px;font-weight:900;color:var(--green)">$10.3亿</span>
+    </div>
+  </div>
+
+  <!-- ========== Slide 4: Gross Margin ========== -->
+  <div class="slide" id="s4">
+    <span class="slide-label">SLIDE 4 / 毛利率</span>
+    <h2>毛利率连续6季上升 — 定价权的证明</h2>
+    <div class="margin-grid">
+      <div class="margin-item"><div class="mv">61.9%</div><div class="ml">CY2023</div></div>
+      <div class="margin-item"><div class="mv">62.4%</div><div class="ml">Q2'24</div></div>
+      <div class="margin-item"><div class="mv">63.2%</div><div class="ml">Q3'24</div></div>
+      <div class="margin-item"><div class="mv">63.6%</div><div class="ml">Q4'24</div></div>
+      <div class="margin-item"><div class="mv">67.4%</div><div class="ml">Q2'25</div></div>
+      <div class="margin-item"><div class="mv">67.5%</div><div class="ml">Q3'25</div></div>
+      <div class="margin-item" style="border:2px solid var(--green);background:rgba(0,210,106,0.08)"><div class="mv" style="color:var(--green);font-size:24px">68.5%</div><div class="ml">Q4'25</div></div>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:15px;">
+      <span style="color:var(--text2)">对比 Marvell 整体毛利率: </span><span style="font-weight:700">~60%</span>
+      <span style="color:var(--text2);margin:0 12px">|</span>
+      <span style="color:var(--green);font-weight:700">CRDO毛利率更高 = 产品不是大宗商品，有定价权</span>
+    </div>
+  </div>
+
+  <!-- ========== Slide 5: Customer Diversification ========== -->
+  <div class="slide" id="s5">
+    <span class="slide-label">SLIDE 5 / 客户分散化</span>
+    <h2>客户集中度改善 — 去风险进行中</h2>
+    <div class="customer-compare">
+      <div class="cust-pie">
+        <div class="title">FY2025</div>
+        <div class="cust-bar" style="width:100%">
+          <div class="cust-seg" style="width:67%;background:var(--red)">微软 67%</div>
+          <div class="cust-seg" style="width:33%;background:var(--text2)">其他 33%</div>
+        </div>
+        <p style="font-size:13px;color:var(--red);margin-top:8px">单一客户依赖严重</p>
+      </div>
+      <div class="cust-arrow-mid">→</div>
+      <div class="cust-pie">
+        <div class="title">最近一季 (Q4 FY2026)</div>
+        <div class="cust-bar" style="width:100%">
+          <div class="cust-seg" style="width:34%;background:var(--blue)">34%</div>
+          <div class="cust-seg" style="width:27%;background:var(--purple)">27%</div>
+          <div class="cust-seg" style="width:16%;background:var(--green)">16%</div>
+          <div class="cust-seg" style="width:10%;background:var(--yellow)">10%</div>
+          <div class="cust-seg" style="width:13%;background:var(--text2)">13%</div>
+        </div>
+        <p style="font-size:13px;color:var(--green);margin-top:8px">四足鼎立，风险分散</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Slide 6: Valuation Model ========== -->
+  <div class="slide" id="s6">
+    <span class="slide-label">SLIDE 6 / 估值模型</span>
+    <h2>3年Revenue Forward估值模型</h2>
+    <div class="formula-box">
+      <b>潜在市值</b> = 第3年收入 × Terminal P/S<br>
+      <b>Terminal P/S</b> = <span class="hl">3.0</span>(base) + <span class="hl">Y3增速 × 15</span>(growth) + <span class="hl">max(0, 毛利率-30%) × 10</span>(margin)<br>
+      <b>增长衰减</b> = 每年保留 <span class="hl">50%</span>（CAGR>80%衰减最快）<br><br>
+      <b>输入:</b> TTM $10.3亿 | CAGR 126%→cap 100% | GM 66.8% | 衰减 50%/年
+    </div>
+    <div class="val-current">当前市值: <b>$463亿</b></div>
+    <div class="val-scenarios">
+      <div class="val-card bear">
+        <div class="sc-name">BEAR</div>
+        <div class="sc-mcap">$188亿</div>
+        <div class="sc-upside" style="color:var(--red)">-59%</div>
+        <div class="sc-detail">Y3 Rev $24.7亿<br>P/S 7.6x</div>
+      </div>
+      <div class="val-card base">
+        <div class="sc-name">BASE</div>
+        <div class="sc-mcap">$404亿</div>
+        <div class="sc-upside" style="color:var(--yellow)">-13%</div>
+        <div class="sc-detail">Y3 Rev $38.7亿<br>P/S 10.4x</div>
+      </div>
+      <div class="val-card bull">
+        <div class="sc-name">BULL</div>
+        <div class="sc-mcap">$465亿</div>
+        <div class="sc-upside" style="color:var(--green)">≈持平</div>
+        <div class="sc-detail">Y3 Rev $38.7亿<br>P/S 12.0x</div>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:15px;color:var(--yellow);margin-top:12px;font-weight:600">市场已把未来3年超高增速定价进去了 — 没有安全边际</p>
+  </div>
+
+  <!-- ========== Slide 7: Moat vs Risk ========== -->
+  <div class="slide" id="s7">
+    <span class="slide-label">SLIDE 7 / 护城河 vs 风险</span>
+    <h2>投资判断</h2>
+    <div class="split-panel">
+      <div class="panel moat">
+        <h3 style="color:var(--green)">护城河</h3>
+        <ul>
+          <li><strong>n-1制程成本优势</strong>成熟工艺做前沿性能，模拟设计是年份活</li>
+          <li><strong>微软Azure先发部署</strong>HiWire Switch开源合作，生态锁定</li>
+          <li><strong>DustPhotonics收购</strong>SerDes → 光DSP → 硅光子全栈覆盖</li>
+          <li><strong>客户分散化</strong>从1家到4家超大客户，67% → 34%</li>
+        </ul>
+      </div>
+      <div class="panel risk">
+        <h3 style="color:var(--red)">风险</h3>
+        <ul>
+          <li><strong>Marvell Golden Cable</strong>研发预算$20亿+/年，能捆绑销售</li>
+          <li><strong>CPO替代</strong>3.2T时代共封装光学压缩AEC可寻址距离</li>
+          <li><strong>估值45x P/S</strong>需持续超高增长消化，无安全边际</li>
+          <li><strong>砍单前科</strong>FY2024发生过大客户突然砍单</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Slide 8: Verdict ========== -->
+  <div class="slide" id="s8">
+    <span class="slide-label">SLIDE 8 / 结论</span>
+    <div class="verdict-box">
+      <div class="verdict-badge">HOLD</div>
+      <p class="verdict-reason">好公司、真瓶颈、有护城河<br>但在$250、45x P/S的位置，好的已经被充分定价了</p>
+      <div class="entry-zone">
+        <div class="ez-label">等待入场区间</div>
+        <div class="ez-range">$120 — $145</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="disclaimer">免责声明：以上内容仅为个人研究分享，不构成任何投资建议。数据来源：SEC EDGAR、Sina Finance。</p>
+</div>
+</body>
+</html>
