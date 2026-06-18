@@ -114,7 +114,7 @@ main { padding:20px 24px; max-width:1400px; margin:0 auto; }
 .chart-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
 .chart-box {
   background:var(--bg2); border:1px solid var(--border); border-radius:8px;
-  padding:12px; min-height:300px; position:relative;
+  padding:12px; height:340px; position:relative;
 }
 .chart-box h4 { font-size:13px; color:var(--text2); margin-bottom:8px; }
 .chart-box canvas { width:100%!important; height:250px!important; }
@@ -188,6 +188,34 @@ select, input[type="number"], input[type="text"] {
 
 .hidden { display:none!important; }
 
+/* Settings Panel */
+.settings-panel {
+  margin-top:24px; padding:16px;
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+}
+.settings-panel h3 { font-size:15px; margin-bottom:12px; }
+.settings-form {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px;
+}
+.settings-form .sf-group { display:flex; flex-direction:column; gap:2px; }
+.settings-form label { font-size:12px; color:var(--text2); }
+.settings-form input { width:100%; }
+.settings-form .form-actions { grid-column:1/-1; display:flex; gap:8px; margin-top:8px; }
+
+/* Company Profile */
+.cp-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;
+}
+.cp-section { margin-bottom:10px; }
+.cp-label { font-size:12px; color:var(--blue); font-weight:600; margin-bottom:4px; }
+.cp-text { font-size:13px; line-height:1.5; color:var(--text); }
+.cp-list { list-style:none; padding:0; }
+.cp-list li { font-size:13px; line-height:1.6; padding-left:12px; position:relative; }
+.cp-list li::before { content:"·"; position:absolute; left:0; color:var(--blue); font-weight:bold; }
+.cp-source { font-size:11px; color:var(--text2); margin-top:8px; }
+
+@media(max-width:900px) { .cp-grid { grid-template-columns:1fr; } }
+
 /* Toast */
 .toast {
   position:fixed; bottom:24px; right:24px; background:var(--bg2);
@@ -213,8 +241,8 @@ select, input[type="number"], input[type="text"] {
 
 /* Supply Chain Visual Map */
 .sm-canvas {
-  position:relative; width:100%; min-height:720px;
-  background:var(--bg); overflow:hidden; user-select:none;
+  position:relative; width:100%; min-height:900px;
+  background:var(--bg); overflow:visible; user-select:none;
 }
 .sm-canvas svg.sm-svg {
   position:absolute; top:0; left:0; width:100%; height:100%;
@@ -281,7 +309,71 @@ select, input[type="number"], input[type="text"] {
 }
 .sm-pulse-dot { animation:sm-pulse 2s infinite; }
 
+/* Methodology Tab */
+.method-content { max-width:900px; }
+.method-content h2 { font-size:18px; margin-bottom:8px; }
+.method-content h3 { font-size:15px; margin:20px 0 8px; color:var(--blue); }
+.method-desc { font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:12px; }
+.method-chain {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:12px 16px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:8px; margin:12px 0 16px;
+}
+.mc-step {
+  padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600;
+  background:var(--bg3); border:1px solid var(--border); color:var(--text2);
+}
+.mc-step.mc-active { background:rgba(88,166,255,0.15); border-color:var(--blue); color:var(--blue); }
+.mc-arrow { color:var(--text2); font-size:16px; }
+.method-box {
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; margin-top:12px; font-size:13px; line-height:1.6;
+}
+
 @media(max-width:768px) {
   header { flex-direction:column; gap:8px; }
   .card-grid { grid-template-columns:1fr; }
 }
+
+/* Valuation Model */
+.card-vm-row {
+  font-size:11px; color:var(--text2); margin-top:6px; padding:4px 8px;
+  background:var(--bg3); border-radius:4px; line-height:1.6;
+}
+.vm-tier { font-weight:600; color:var(--text); }
+.vm-upside { font-weight:600; color:var(--green); }
+.vm-flag {
+  display:inline-block; padding:1px 6px; border-radius:3px;
+  font-size:10px; font-weight:600; margin-left:4px;
+}
+.vm-flag-sweet { background:rgba(63,185,80,0.15); color:var(--green); }
+.vm-flag-path { background:rgba(88,166,255,0.15); color:var(--blue); }
+.vm-flag-micro { background:var(--red-bg); color:var(--red); }
+
+.vm-inputs {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px;
+  margin:10px 0;
+}
+.vm-input-item {
+  background:var(--bg3); border-radius:6px; padding:8px 10px; text-align:center;
+}
+.vm-input-label { font-size:11px; color:var(--text2); display:block; }
+.vm-input-val { font-size:16px; font-weight:600; }
+
+.vm-scenarios {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:10px 0;
+}
+.vm-scenario {
+  border-radius:8px; padding:12px; text-align:center;
+  border:1px solid var(--border); background:var(--bg3);
+}
+.vm-bear { border-color:rgba(248,81,73,0.3); }
+.vm-base { border-color:rgba(88,166,255,0.3); }
+.vm-bull { border-color:rgba(63,185,80,0.3); }
+.vm-scenario-name { font-size:12px; color:var(--text2); font-weight:600; margin-bottom:4px; }
+.vm-scenario-mcap { font-size:22px; font-weight:700; }
+.vm-bear .vm-scenario-mcap { color:var(--red); }
+.vm-base .vm-scenario-mcap { color:var(--blue); }
+.vm-bull .vm-scenario-mcap { color:var(--green); }
+.vm-scenario-upside { font-size:14px; font-weight:600; margin:2px 0; }
+.vm-scenario-detail { font-size:11px; color:var(--text2); }
