@@ -24,6 +24,7 @@
 <main>
   <!-- Dashboard -->
   <section id="tab-dashboard" class="tab-content active">
+    <div id="freshness-bar" class="freshness-bar"></div>
     <div id="macro-bar" class="macro-bar"></div>
     <div id="stats-row" class="stats-row"></div>
     <div class="section-title">核心标的</div>
@@ -45,7 +46,8 @@
       <div id="margin-chart" class="chart-box"><h4>毛利率趋势</h4><canvas id="margin-canvas"></canvas></div>
     </div>
     <div id="valuation-panel" class="valuation-panel"></div>
-    <div id="supply-panel"></div>
+    <div id="filings-panel" class="thesis-panel" style="margin-top:12px"></div>
+    <div id="supply-panel" class="thesis-panel" style="margin-top:12px"></div>
   </section>
 
   <!-- Trading -->
@@ -164,10 +166,13 @@
   <section id="tab-watchlist" class="tab-content">
     <div class="toolbar">
       <button id="wl-add-btn" class="btn btn-primary">+ 新增标的</button>
+      <button id="wl-collect-all" class="btn btn-primary">一键采集全部</button>
       <button id="wl-collect-fundamentals" class="btn">采集:基本面</button>
       <button id="wl-collect-trader" class="btn">采集:交易信号</button>
       <button id="wl-collect-research" class="btn">采集:公司研究</button>
       <button id="wl-collect-valuation" class="btn">估值模型</button>
+      <button id="wl-collect-insider" class="btn">采集:内部人</button>
+      <button id="wl-collect-filing" class="btn">采集:Filing</button>
     </div>
     <div id="wl-form" class="wl-form hidden"></div>
     <table id="wl-table" class="data-table full-width">
