@@ -173,6 +173,11 @@ async def api_company(request):
     return json_response(profile)
 
 
+async def api_freshness(request):
+    data = mdb.get_data_freshness()
+    return json_response(data)
+
+
 async def api_settings_get(request):
     settings = mdb.get_all_settings()
     if "llm_api_key" in settings and settings["llm_api_key"]:
@@ -209,6 +214,7 @@ def create_app():
     app.router.add_post("/api/watchlist", api_watchlist_post)
     app.router.add_post("/api/collect/{module}", api_collect)
     app.router.add_get("/api/company/{ticker}", api_company)
+    app.router.add_get("/api/freshness", api_freshness)
     app.router.add_get("/api/settings", api_settings_get)
     app.router.add_post("/api/settings", api_settings_post)
 
