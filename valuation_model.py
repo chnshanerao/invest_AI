@@ -109,6 +109,8 @@ def compute_gross_margin(fundamentals):
 
 def growth_decay(cagr):
     abs_g = abs(cagr)
+    if abs_g > 1.00:
+        return 0.40
     if abs_g > 0.80:
         return 0.50
     if abs_g > 0.50:
@@ -128,7 +130,7 @@ def terminal_ps(y3_growth, gross_margin):
 
 
 def project_scenario(ttm_rev, raw_cagr, current_mcap, scenario_mult):
-    effective_cagr = max(-0.20, min(1.00, raw_cagr * scenario_mult))
+    effective_cagr = max(-0.20, min(2.00, raw_cagr * scenario_mult))
     decay = growth_decay(raw_cagr)
 
     g1 = max(-0.10, effective_cagr)
@@ -146,7 +148,7 @@ def project_scenario(ttm_rev, raw_cagr, current_mcap, scenario_mult):
     }
 
 
-def valuate_ticker(ticker, fundamentals, valuation):
+def valuate_ticker(ticker, fundamentals, valuation, margin_override=None):
     if not valuation or not valuation.get("market_cap"):
         return None
 
@@ -159,11 +161,17 @@ def valuate_ticker(ticker, fundamentals, valuation):
     cagr, cagr_detail = compute_revenue_cagr(fundamentals)
     if cagr is None:
         return None
-    cagr_capped = max(-0.20, min(1.00, cagr))
+    cagr_capped = max(-0.20, min(2.00, cagr))
 
-    gm = compute_gross_margin(fundamentals)
+    if margin_override is not None:
+        gm = margin_override / 100 if margin_override > 1 else margin_override
+        gm_source = "override"
+    else:
+        gm = compute_gross_margin(fundamentals)
+        gm_source = "gaap"
     if gm is None:
         gm = 0.40
+        gm_source = "default"
 
     scenarios = {}
     if cagr_capped < 0:
@@ -195,6 +203,7 @@ def valuate_ticker(ticker, fundamentals, valuation):
         "ttm_revenue": ttm_detail,
         "cagr": cagr_detail,
         "gross_margin": round(gm, 4),
+        "margin_source": gm_source,
         "bear_projection": scenarios["bear"]["projection"],
         "base_projection": scenarios["base"]["projection"],
         "bull_projection": scenarios["bull"]["projection"],
@@ -239,10 +248,12 @@ def fmt_b(n):
 
 def run(tickers=None):
     conn = db.get_conn()
+    all_wl = db.get_watchlist(conn)
+    wl_map = {w["ticker"]: w for w in all_wl}
     if tickers:
-        wl = [{"ticker": t} for t in tickers]
+        wl = [wl_map.get(t, {"ticker": t}) for t in tickers]
     else:
-        wl = db.get_watchlist(conn)
+        wl = all_wl
 
     success, skip = 0, 0
     for item in wl:
@@ -250,7 +261,8 @@ def run(tickers=None):
         fundamentals = db.get_fundamentals(ticker, limit=8, conn=conn)
         valuation = db.get_valuation(ticker, conn=conn)
 
-        result = valuate_ticker(ticker, fundamentals, valuation)
+        mo = item.get("margin_override")
+        result = valuate_ticker(ticker, fundamentals, valuation, margin_override=mo)
         if not result:
             print(f"  {ticker:8s}  SKIP — insufficient data")
             skip += 1
@@ -268,8 +280,9 @@ def run(tickers=None):
         if result["micro_warning"]:
             flags += " ⚠️micro"
 
+        gm_note = " (override)" if mo else ""
         print(f"  {ticker:8s}  {tier_icon} {result['current_tier']:6s} {fmt_b(result['current_mcap']):>10s}"
-              f"  CAGR {result['revenue_cagr']*100:+.0f}%  GM {result['gross_margin']*100:.0f}%"
+              f"  CAGR {result['revenue_cagr']*100:+.0f}%  GM {result['gross_margin']*100:.0f}%{gm_note}"
               f"  → Bear {fmt_b(result['bear_mcap']):>10s}"
               f"  Base {fmt_b(result['base_mcap']):>10s}"
               f"  Bull {fmt_b(result['bull_mcap']):>10s}"
