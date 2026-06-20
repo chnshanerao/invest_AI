@@ -43,9 +43,28 @@ $$('.tab').forEach(btn=>{
 // ---- Dashboard ----
 async function loadDashboard(){
   dashData = await api('/api/dashboard');
+  renderFreshness();
   renderMacro(dashData.macro);
   renderStats(dashData.stats);
   renderCards(dashData.watchlist);
+}
+
+async function renderFreshness(){
+  try{
+    const f=await api('/api/freshness');
+    const bar=$('#freshness-bar');
+    if(!bar)return;
+    const now=Date.now();
+    const items=Object.entries(f).map(([k,v])=>{
+      if(!v) return `<span class="fresh-item fresh-stale">${k}: 无数据</span>`;
+      const d=new Date(v);
+      const days=Math.floor((now-d.getTime())/(1000*60*60*24));
+      const cls=days>7?'fresh-stale':days>3?'fresh-warn':'fresh-ok';
+      const label=days===0?'今天':days===1?'昨天':`${days}天前`;
+      return `<span class="fresh-item ${cls}">${k}: ${label}</span>`;
+    });
+    bar.innerHTML='<span class="fresh-label">数据新鲜度:</span>'+items.join('');
+  }catch(e){}
 }
 
 function renderMacro(m){
@@ -197,6 +216,8 @@ async function openResearch(ticker){
   renderValuationModelPanel(d.valuation_model);
   renderFundamentalsCharts(d.fundamentals);
   renderValuationPanel(d.valuation,d.fundamentals);
+  renderFilings(d.filings);
+  renderSupplyChainPanel(d.supply_chain);
 }
 
 function tickerSwitcher(current,handler){
@@ -363,6 +384,8 @@ function renderValuationModelPanel(vm){
   const cd=vm.calc_details||{};
   const cagrPct=vm.revenue_cagr!=null?(vm.revenue_cagr*100).toFixed(1):'—';
   const gmPct=vm.gross_margin!=null?(vm.gross_margin*100).toFixed(1):'—';
+  const gmSource=cd.margin_source==='override'?' (非GAAP override)':cd.margin_source==='default'?' (默认)':'';
+  const updatedAt=vm.updated_at?`<span class="vm-updated">更新: ${vm.updated_at.substring(0,10)}</span>`:'';
 
   let flags='';
   if(vm.is_sweet_spot) flags+='<span class="vm-flag vm-flag-sweet">甜区$5-50B</span>';
@@ -379,12 +402,12 @@ function renderValuationModelPanel(vm){
   const decayPct=proj.decay!=null?(proj.decay*100).toFixed(0):'—';
 
   container.innerHTML=`
-    <h3>估值模型 — 3年Revenue Forward</h3>
+    <h3>估值模型 — 3年Revenue Forward ${updatedAt}</h3>
     <div class="vm-inputs">
       <div class="vm-input-item"><span class="vm-input-label">当前市值</span><span class="vm-input-val">${tierIcon} ${vm.current_tier} ${fmtB(vm.current_mcap)}</span></div>
       <div class="vm-input-item"><span class="vm-input-label">TTM Revenue</span><span class="vm-input-val">${fmtB(vm.ttm_revenue)}</span></div>
       <div class="vm-input-item"><span class="vm-input-label">Revenue CAGR</span><span class="vm-input-val" style="color:${vm.revenue_cagr>0?'var(--green)':'var(--red)'}">${cagrPct}%</span></div>
-      <div class="vm-input-item"><span class="vm-input-label">毛利率</span><span class="vm-input-val">${gmPct}%</span></div>
+      <div class="vm-input-item"><span class="vm-input-label">毛利率${gmSource}</span><span class="vm-input-val">${gmPct}%</span></div>
       <div class="vm-input-item"><span class="vm-input-label">增长衰减</span><span class="vm-input-val">${decayPct}%/年</span></div>
     </div>
     ${flags?`<div style="margin:8px 0">${flags}</div>`:''}
@@ -492,15 +515,21 @@ function renderIndicators(bars){
   const latest=closes[closes.length-1];
   const sma20=closes.length>=20?avg(closes.slice(-20)):null;
   const sma50=closes.length>=50?avg(closes.slice(-50)):null;
+  const sma200=closes.length>=200?avg(closes.slice(-200)):null;
   const rsi=calcRSI(closes,14);
   const vols=bars.map(b=>b.volume);
   const avgVol=avg(vols.slice(-20));
   const volRatio=avgVol>0?vols[vols.length-1]/avgVol:null;
+  const macd=calcMACD(closes);
+  const boll=calcBollinger(closes,20);
   const items=[
     {label:'价格',val:'$'+fmt(latest)},
     {label:'SMA20',val:sma20?'$'+fmt(sma20):'—',cls:latest>sma20?'color:var(--green)':'color:var(--red)'},
     {label:'SMA50',val:sma50?'$'+fmt(sma50):'—',cls:latest>(sma50||0)?'color:var(--green)':'color:var(--red)'},
+    {label:'SMA200',val:sma200?'$'+fmt(sma200):'—',cls:sma200?latest>sma200?'color:var(--green)':'color:var(--red)':''},
     {label:'RSI(14)',val:rsi!=null?fmt(rsi,0):'—',cls:rsi>70?'color:var(--red)':rsi<30?'color:var(--green)':''},
+    {label:'MACD',val:macd?fmt(macd.histogram,2):'—',cls:macd?macd.histogram>0?'color:var(--green)':'color:var(--red)':''},
+    {label:'布林带',val:boll?'$'+fmt(boll.lower,0)+' - $'+fmt(boll.upper,0):'—'},
     {label:'量比',val:volRatio?fmt(volRatio,1)+'x':'—',cls:volRatio>2?'color:var(--yellow)':''},
     {label:'成交量',val:fmtK(vols[vols.length-1])},
   ];
@@ -508,6 +537,38 @@ function renderIndicators(bars){
 }
 function avg(a){return a.reduce((s,v)=>s+v,0)/a.length;}
 function calcRSI(c,p){if(c.length<p+1)return null;let g=0,l=0;for(let i=c.length-p;i<c.length;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else l-=d;}if(l===0)return 100;return 100-100/(1+g/p/(l/p));}
+function calcEMA(data,period){if(data.length<period)return null;const k=2/(period+1);let ema=avg(data.slice(0,period));for(let i=period;i<data.length;i++)ema=data[i]*k+ema*(1-k);return ema;}
+function calcMACD(closes){if(closes.length<26)return null;const ema12=calcEMA(closes,12),ema26=calcEMA(closes,26);if(ema12==null||ema26==null)return null;const macdLine=ema12-ema26;const macdArr=[];let e12=avg(closes.slice(0,12)),e26=avg(closes.slice(0,26));const k12=2/13,k26=2/27;for(let i=0;i<closes.length;i++){if(i>=12)e12=closes[i]*k12+e12*(1-k12);if(i>=26){e26=closes[i]*k26+e26*(1-k26);macdArr.push(e12-e26);}}if(macdArr.length<9)return{macd:macdLine,signal:macdLine,histogram:0};let sig=avg(macdArr.slice(0,9));const ks=2/10;for(let i=9;i<macdArr.length;i++)sig=macdArr[i]*ks+sig*(1-ks);return{macd:macdArr[macdArr.length-1],signal:sig,histogram:macdArr[macdArr.length-1]-sig};}
+function calcBollinger(closes,p){if(closes.length<p)return null;const slice=closes.slice(-p);const m=avg(slice);const variance=slice.reduce((s,v)=>s+(v-m)*(v-m),0)/p;const sd=Math.sqrt(variance);return{middle:m,upper:m+2*sd,lower:m-2*sd};}
+
+function renderFilings(filings){
+  const p=$('#filings-panel');
+  if(!p)return;
+  if(!filings||!filings.length){p.innerHTML='';return;}
+  const rows=filings.map(f=>`<tr>
+    <td>${f.filing_date||f.date||'—'}</td>
+    <td>${f.form_type||f.type||'—'}</td>
+    <td>${f.description||f.title||'—'}</td>
+    <td>${f.score!=null?f.score:'—'}</td>
+  </tr>`).join('');
+  p.innerHTML=`<h3 style="font-size:15px;margin-bottom:8px">SEC Filing事件</h3>
+    <table class="data-table full-width"><thead><tr><th>日期</th><th>类型</th><th>描述</th><th>影响分</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function renderSupplyChainPanel(supply){
+  const p=$('#supply-panel');
+  if(!p)return;
+  if(!supply||!supply.length){p.innerHTML='';return;}
+  const rows=supply.map(s=>`<tr>
+    <td>${s.mention_type||s.keyword||'—'}</td>
+    <td>${s.mention_count||s.count||'—'}</td>
+    <td style="font-size:12px">${s.context||s.snippet||'—'}</td>
+  </tr>`).join('');
+  p.innerHTML=`<h3 style="font-size:15px;margin-bottom:8px">10-K供应链扫描</h3>
+    <table class="data-table full-width"><thead><tr><th>关键词</th><th>次数</th><th>上下文</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
 
 function renderTradeAdvice(info,sig,val,bars){
   const panel=$('#trade-advice');
@@ -728,12 +789,23 @@ async function loadWatchlist(){
   loadSettings();
 }
 
-['fundamentals','trader','research','valuation'].forEach(mod=>{
-  $(`#wl-collect-${mod}`).addEventListener('click',async()=>{
+['fundamentals','trader','research','valuation','insider','filing'].forEach(mod=>{
+  const btn=$(`#wl-collect-${mod}`);
+  if(btn) btn.addEventListener('click',async()=>{
     toast(`正在采集 ${mod}...`);
     const r=await api(`/api/collect/${mod}`,{method:'POST'});
     toast(r.ok?`${mod} 采集完成`:`${mod} 采集失败`,r.ok?'success':'error');
   });
+});
+
+$('#wl-collect-all').addEventListener('click',async()=>{
+  const mods=['fundamentals','trader','valuation','insider','filing'];
+  toast('一键采集开始...');
+  for(const mod of mods){
+    toast(`正在采集 ${mod}...`);
+    try{await api(`/api/collect/${mod}`,{method:'POST'});}catch(e){}
+  }
+  toast('全部采集完成');
 });
 
 $('#wl-add-btn').addEventListener('click',()=>{
