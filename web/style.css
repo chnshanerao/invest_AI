@@ -32,6 +32,18 @@ main { padding:20px 24px; max-width:1400px; margin:0 auto; }
 .tab-content.active { display:block; }
 
 /* Macro Bar */
+.freshness-bar {
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  padding:6px 12px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:6px; margin-bottom:8px; font-size:11px;
+}
+.fresh-label { color:var(--text2); font-weight:600; margin-right:4px; }
+.fresh-item { padding:2px 8px; border-radius:4px; }
+.fresh-ok { color:var(--green); }
+.fresh-warn { color:var(--yellow); background:var(--yellow-bg); }
+.fresh-stale { color:var(--red); background:var(--red-bg); }
+.vm-updated { font-size:11px; color:var(--text2); font-weight:normal; margin-left:8px; }
+
 .macro-bar {
   display:flex; gap:16px; flex-wrap:wrap;
   padding:12px 16px; background:var(--bg2); border:1px solid var(--border);
