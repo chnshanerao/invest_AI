@@ -45,7 +45,6 @@ import base64
 
 WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(WORKSPACE, "state")
-DB_PATH = os.path.join(STATE_DIR, "price_history.db")
 STATE_FILE = os.path.join(STATE_DIR, "trader_state.json")
 
 DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=61fded0e8252140ae2fcc761ff20f8cf6df9f75d1623c3be6a4cfadb6d9dc586"
@@ -53,37 +52,27 @@ DINGTALK_SECRET = "SECd92d215a87b1a45bd6dd94ed0699bcefa5fc7b98e4ffc29226bf0fbf5a
 
 BATCH_RATIOS = [0.30, 0.35, 0.35]
 
-WATCHLIST = {
-    # === 核心标的（资金面干净，瓶颈位置确认）===
+# Fallback watchlist for when DB is not available
+_FALLBACK_WATCHLIST = {
     "COHR":  {"name": "Coherent",     "layer": "L5光模块", "score": 19, "target_usd": 6000, "stop_loss": -0.15, "entry_zone": [370, 410]},
     "LITE":  {"name": "Lumentum",     "layer": "L5光源",   "score": 20, "target_usd": 4000, "stop_loss": -0.15, "entry_zone": [800, 900]},
     "MU":    {"name": "Micron",       "layer": "L2 HBM",   "score": 16, "target_usd": 4000, "stop_loss": -0.15, "entry_zone": [750, 850]},
     "LEU":   {"name": "Centrus",      "layer": "L8核燃料", "score": 18, "target_usd": 2000, "stop_loss": -0.20, "entry_zone": [140, 170]},
-    # === 降级标的（内部人大量卖出/中国风险/非真瓶颈）===
-    "CRDO":  {"name": "Credo Tech",   "layer": "L4连接",   "score": 12, "target_usd": 0, "stop_loss": -0.15, "entry_zone": [120, 145],
-              "downgrade": "CTO卖$58M+CEO卖$30M/0买入，非真瓶颈(Marvell Golden Cable商品化)，30x P/S"},
-    "AXTI":  {"name": "AXT Inc",      "layer": "L6 InP",   "score": 17, "target_usd": 0, "stop_loss": -0.20, "entry_zone": [80, 100], "downgrade": "CEO套现$22M+铟管控"},
-    "VICR":  {"name": "Vicor",        "layer": "L7功率",   "score": 15, "target_usd": 0, "stop_loss": -0.15, "entry_zone": [250, 285], "downgrade": "CEO卖$111M/0次买入"},
-    # === HK代理标的（港交所ETF跟踪韩国KRX）===
-    "HYNIX": {"name": "SK Hynix",     "layer": "L2 HBM",   "score": 17, "target_usd": 4000, "stop_loss": -0.15, "entry_zone": [70, 90],
-              "source": "tencent_hk", "hk_code": "07709", "currency": "HKD",
-              "note": "通过港交所07709 ETF追踪，价格为HKD"},
-    # === 新晋核心标的（Serenity五问通过，2026-06深挖）===
-    "PLAB":  {"name": "Photronics",   "layer": "L3光掩模", "score": 20, "target_usd": 3000, "stop_loss": -0.15, "entry_zone": [25, 32],
-              "note": "全球merchant光掩模双寡头之一，唯一上市纯正标的。PE10.5x，从$56暴跌47%到$29"},
-    "CAMT":  {"name": "Camtek",       "layer": "L3检测",   "score": 17, "target_usd": 3000, "stop_loss": -0.15, "entry_zone": [120, 145],
-              "note": "先进封装2D/3D检测隐形冠军，HBM/CoWoS必经检测环节。硬度35/50，从$130反弹中"},
-    # === 观察标的（待深挖/等入场时机）===
-    "ADEA":  {"name": "Adeia",        "layer": "L0 IP封装", "score": 14, "target_usd": 0, "stop_loss": -0.20, "entry_zone": [18, 24],
-              "note": "先进封装DBI专利收费站，半导体IP仅占6%营收，CEO Q4离职，等半导体收入占比>20%"},
-    "WLDN":  {"name": "Willdan",      "layer": "L9电网接入", "score": None, "target_usd": 0, "stop_loss": -0.15, "entry_zone": [30, 40],
-              "note": "数据中心电网互联工程瓶颈，排队4-10年，工程师不可速成"},
-    "GSM":   {"name": "Ferroglobe",   "layer": "L1硅金属", "score": None, "target_usd": 0, "stop_loss": -0.25, "entry_zone": [3, 5],
-              "note": "西方最大硅金属生产商，0.39x P/S，中国控制70%产能的替代"},
-    "SMR":   {"name": "NuScale",      "layer": "L8 SMR",   "score": None, "target_usd": 0, "stop_loss": -0.25, "entry_zone": [8, 12]},
-    "NNE":   {"name": "Nano Nuclear", "layer": "L8核物流", "score": None, "target_usd": 0, "stop_loss": -0.20, "entry_zone": [20, 26]},
-    "MX":    {"name": "Magnachip",    "layer": "L7 MOSFET","score": None, "target_usd": 0, "stop_loss": -0.25, "entry_zone": [5, 8]},
+    "CRDO":  {"name": "Credo Tech",   "layer": "L4连接",   "score": 12, "target_usd": 0, "stop_loss": -0.15, "entry_zone": [120, 145]},
+    "PLAB":  {"name": "Photronics",   "layer": "L3光掩模", "score": 20, "target_usd": 3000, "stop_loss": -0.15, "entry_zone": [25, 32]},
+    "CAMT":  {"name": "Camtek",       "layer": "L3检测",   "score": 17, "target_usd": 3000, "stop_loss": -0.15, "entry_zone": [120, 145]},
 }
+
+def load_watchlist():
+    """Load watchlist from DB; fall back to hardcoded if DB unavailable."""
+    if _HAS_DB:
+        try:
+            wl = mdb.get_watchlist_as_dict()
+            if wl:
+                return wl
+        except Exception:
+            pass
+    return _FALLBACK_WATCHLIST
 
 # 宏观入场条件 — 全部达标才考虑建仓
 ENTRY_CONDITIONS = {
@@ -128,15 +117,19 @@ def http_get(url, referer=None, timeout=15):
 
 def init_db():
     os.makedirs(STATE_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS daily_bars (
-            ticker TEXT, date TEXT, open REAL, high REAL,
-            low REAL, close REAL, volume INTEGER,
-            PRIMARY KEY (ticker, date)
-        )
-    """)
-    conn.commit()
+    if _HAS_DB:
+        mdb.init_db()
+        conn = mdb.get_conn()
+    else:
+        conn = sqlite3.connect(os.path.join(STATE_DIR, "chokepoint.db"))
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_bars (
+                ticker TEXT, date TEXT, open REAL, high REAL,
+                low REAL, close REAL, volume INTEGER,
+                PRIMARY KEY (ticker, date)
+            )
+        """)
+        conn.commit()
     return conn
 
 def fetch_sina_kline(ticker):
@@ -182,13 +175,14 @@ def fetch_tencent_hk_kline(hk_code, days=250):
         if len(k) >= 5
     ]
 
-def update_ticker_history(conn, ticker, verbose=False):
+def update_ticker_history(conn, ticker, verbose=False, watchlist=None):
     cursor = conn.execute(
         "SELECT MAX(date) FROM daily_bars WHERE ticker=?", (ticker,)
     )
     last_date = cursor.fetchone()[0]
 
-    config = WATCHLIST.get(ticker, {})
+    wl = watchlist or load_watchlist()
+    config = wl.get(ticker, {})
     source = config.get("source", "sina_us")
 
     if source == "tencent_hk":
@@ -205,7 +199,7 @@ def update_ticker_history(conn, ticker, verbose=False):
         if last_date and b["date"] <= last_date:
             continue
         conn.execute(
-            "INSERT OR REPLACE INTO daily_bars VALUES (?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO daily_bars (ticker, date, open, high, low, close, volume) VALUES (?,?,?,?,?,?,?)",
             (ticker, b["date"], b["open"], b["high"], b["low"], b["close"], b["volume"]),
         )
         new_count += 1
@@ -213,7 +207,7 @@ def update_ticker_history(conn, ticker, verbose=False):
     if new_count == 0 and not last_date:
         for b in bars[-250:]:
             conn.execute(
-                "INSERT OR REPLACE INTO daily_bars VALUES (?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO daily_bars (ticker, date, open, high, low, close, volume) VALUES (?,?,?,?,?,?,?)",
                 (ticker, b["date"], b["open"], b["high"], b["low"], b["close"], b["volume"]),
             )
             new_count += 1
@@ -454,15 +448,15 @@ def calc_rsi(closes, period=14):
         result[i + 1] = 100 if avg_loss == 0 else 100 - 100 / (1 + avg_gain / avg_loss)
     return result
 
-def calc_macd(closes):
-    ema12 = ema(closes, 12)
-    ema26 = ema(closes, 26)
+def calc_macd(closes, fast=12, slow=26, signal=9):
+    ema_fast = ema(closes, fast)
+    ema_slow = ema(closes, slow)
     macd_line = [
-        (ema12[i] - ema26[i]) if (ema12[i] is not None and ema26[i] is not None) else None
+        (ema_fast[i] - ema_slow[i]) if (ema_fast[i] is not None and ema_slow[i] is not None) else None
         for i in range(len(closes))
     ]
     valid = [v for v in macd_line if v is not None]
-    sig = ema(valid, 9) if len(valid) >= 9 else [None] * len(valid)
+    sig = ema(valid, signal) if len(valid) >= signal else [None] * len(valid)
     signal_line = [None] * len(macd_line)
     si = 0
     for i in range(len(macd_line)):
@@ -497,6 +491,34 @@ def calc_atr(highs, lows, closes, period=20):
         tr = max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1]))
         trs.append(tr)
     return sma(trs, period)
+
+
+def calc_kdj(highs, lows, closes, period=9, k_smooth=3, d_smooth=3):
+    n = len(closes)
+    rsv = [None] * n
+    for i in range(period - 1, n):
+        h = max(highs[i - period + 1:i + 1])
+        l = min(lows[i - period + 1:i + 1])
+        rsv[i] = (closes[i] - l) / (h - l) * 100 if h != l else 50
+
+    k_line = [None] * n
+    d_line = [None] * n
+    j_line = [None] * n
+    for i in range(n):
+        if rsv[i] is None:
+            continue
+        prev_k = k_line[i - 1] if i > 0 else None
+        prev_d = d_line[i - 1] if i > 0 else None
+        if prev_k is None:
+            k_line[i] = rsv[i]
+            d_line[i] = rsv[i]
+        else:
+            k_line[i] = (prev_k * (k_smooth - 1) + rsv[i]) / k_smooth
+            d_line[i] = (prev_d * (d_smooth - 1) + k_line[i]) / d_smooth
+        j_line[i] = 3 * k_line[i] - 2 * d_line[i]
+
+    return k_line, d_line, j_line
+
 
 def compute_indicators(bars):
     if len(bars) < 50:
@@ -861,7 +883,7 @@ def format_daily_report(scan_results, state, macro=None):
         lines.append("")
 
     # 持仓状态
-    held = {t: get_position(state, t) for t in WATCHLIST if get_position(state, t)["batch"] > 0}
+    held = {t: get_position(state, t) for t in watchlist if get_position(state, t)["batch"] > 0}
     if held:
         lines.append("#### 📈 持仓状态")
         lines.append("| 标的 | Batch | 成本 | 现价 | 盈亏 | 金额 |")
@@ -930,11 +952,12 @@ def send_dingtalk(report_md, title="瓶颈股信号"):
 
 def run_update_history(verbose=True):
     conn = init_db()
+    watchlist = load_watchlist()
     if verbose:
         print("更新历史K线数据...")
-    for ticker in WATCHLIST:
+    for ticker in watchlist:
         try:
-            update_ticker_history(conn, ticker, verbose=verbose)
+            update_ticker_history(conn, ticker, verbose=verbose, watchlist=watchlist)
             time.sleep(0.3)
         except Exception as e:
             if verbose:
@@ -944,23 +967,24 @@ def run_update_history(verbose=True):
 def run_scan(dingtalk=False, ticker_filter=None, verbose=True):
     conn = init_db()
     state = load_state()
+    watchlist = load_watchlist()
 
-    for t in WATCHLIST:
+    for t in watchlist:
         if ticker_filter and t != ticker_filter.upper():
             continue
         try:
-            update_ticker_history(conn, t, verbose=False)
+            update_ticker_history(conn, t, verbose=False, watchlist=watchlist)
             time.sleep(0.2)
         except Exception:
             pass
 
     scan_results = []
-    tickers = [ticker_filter.upper()] if ticker_filter else list(WATCHLIST.keys())
+    tickers = [ticker_filter.upper()] if ticker_filter else list(watchlist.keys())
 
     for ticker in tickers:
-        if ticker not in WATCHLIST:
+        if ticker not in watchlist:
             continue
-        config = WATCHLIST[ticker]
+        config = watchlist[ticker]
         bars = get_bars(conn, ticker, 250)
         if not bars:
             if verbose:
@@ -1077,8 +1101,9 @@ def run_scan(dingtalk=False, ticker_filter=None, verbose=True):
 
 def run_backtest(ticker, days, verbose=True):
     conn = init_db()
+    watchlist = load_watchlist()
     try:
-        update_ticker_history(conn, ticker, verbose=False)
+        update_ticker_history(conn, ticker, verbose=False, watchlist=watchlist)
     except Exception:
         pass
 
@@ -1089,7 +1114,7 @@ def run_backtest(ticker, days, verbose=True):
         print(f"{ticker}: 数据不足")
         return
 
-    config = WATCHLIST.get(ticker, {
+    config = watchlist.get(ticker, {
         "name": ticker, "layer": "?", "score": None,
         "target_usd": 5000, "stop_loss": -0.15, "entry_zone": [0, 999999],
     })
@@ -1164,10 +1189,11 @@ def run_macro(verbose=True, dingtalk=False):
 # 盘中实时监控
 # ============================================================
 
-def fetch_realtime_batch():
+def fetch_realtime_batch(watchlist=None):
     """Sina批量实时行情 — 美股+港股+宏观指标一次拉取"""
-    us_tickers = [t for t, c in WATCHLIST.items() if c.get("source", "sina_us") == "sina_us"]
-    hk_tickers = [(t, c["hk_code"]) for t, c in WATCHLIST.items() if c.get("source") == "tencent_hk"]
+    wl = watchlist or load_watchlist()
+    us_tickers = [t for t, c in wl.items() if c.get("source", "sina_us") == "sina_us"]
+    hk_tickers = [(t, c["hk_code"]) for t, c in wl.items() if c.get("source") == "tencent_hk"]
 
     symbols = [f"gb_{t.lower()}" for t in us_tickers]
     symbols += [f"hk{code}" for _, code in hk_tickers]
@@ -1216,12 +1242,13 @@ def fetch_realtime_batch():
 
 def run_intraday(dingtalk=True, verbose=False):
     """盘中快速扫描：实时价格 + 宏观 → 异常立即推送"""
+    watchlist = load_watchlist()
     state = load_state()
     now = datetime.datetime.now()
     now_str = now.strftime("%H:%M")
 
     try:
-        prices, macro_raw = fetch_realtime_batch()
+        prices, macro_raw = fetch_realtime_batch(watchlist=watchlist)
     except Exception as e:
         if verbose:
             print(f"实时数据拉取失败: {e}")
@@ -1249,7 +1276,7 @@ def run_intraday(dingtalk=True, verbose=False):
 
     # --- 个股入场区间检测 ---
     entry_zone_hits = []
-    for ticker, config in WATCHLIST.items():
+    for ticker, config in watchlist.items():
         if config["target_usd"] == 0:
             continue
         p = prices.get(ticker, {})
@@ -1268,7 +1295,7 @@ def run_intraday(dingtalk=True, verbose=False):
             alerts.append(f"📉 {ticker} 暴跌{chg:+.1f}% → ${price:.2f}")
 
     # --- 持仓止损检测 ---
-    for ticker, config in WATCHLIST.items():
+    for ticker, config in watchlist.items():
         pos = get_position(state, ticker)
         if pos["batch"] == 0:
             continue
@@ -1310,14 +1337,14 @@ def run_intraday(dingtalk=True, verbose=False):
 
     # 附加当前全景
     lines.append("#### 📊 实时快照")
-    core_tickers = [t for t, c in WATCHLIST.items() if c["target_usd"] > 0]
+    core_tickers = [t for t, c in watchlist.items() if c["target_usd"] > 0]
     for t in core_tickers:
         p = prices.get(t, {})
         price = p.get("price")
         chg = p.get("chg_pct")
         if price is None:
             continue
-        config = WATCHLIST[t]
+        config = watchlist[t]
         ez_low, ez_high = config["entry_zone"]
         zone_status = "✅区间内" if ez_low <= price <= ez_high else "⬇️低于区间" if price < ez_low else "⬆️高于区间"
         chg_str = f" ({chg:+.1f}%)" if chg is not None else ""
