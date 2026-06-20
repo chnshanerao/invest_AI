@@ -14,7 +14,6 @@ from datetime import datetime
 WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(WORKSPACE, "state")
 DB_PATH = os.path.join(STATE_DIR, "chokepoint.db")
-PRICE_DB = os.path.join(STATE_DIR, "price_history.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS watchlist (
@@ -26,6 +25,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
     source TEXT DEFAULT 'sina_us',
     hk_code TEXT, currency TEXT DEFAULT 'USD',
     downgrade TEXT, note TEXT,
+    margin_override REAL,
     created_at TEXT, updated_at TEXT
 );
 
@@ -188,6 +188,11 @@ def init_db():
     conn = get_conn()
     conn.executescript(SCHEMA)
     conn.commit()
+    try:
+        conn.execute("ALTER TABLE watchlist ADD COLUMN margin_override REAL")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
     conn.close()
 
 
@@ -199,6 +204,29 @@ def get_watchlist(conn=None):
     if not conn:
         c.close()
     return [dict(r) for r in rows]
+
+
+def get_watchlist_as_dict(conn=None):
+    """Return watchlist as {ticker: config_dict} for trader compatibility."""
+    items = get_watchlist(conn=conn)
+    result = {}
+    for item in items:
+        ticker = item["ticker"]
+        result[ticker] = {
+            "name": item.get("name") or ticker,
+            "layer": item.get("layer") or "",
+            "score": item.get("score"),
+            "target_usd": item.get("target_usd") or 0,
+            "stop_loss": item.get("stop_loss") or -0.15,
+            "entry_zone": [item.get("entry_low") or 0, item.get("entry_high") or 999999],
+            "source": item.get("source") or "sina_us",
+            "hk_code": item.get("hk_code") or "",
+            "currency": item.get("currency") or "USD",
+            "downgrade": item.get("downgrade") or "",
+            "note": item.get("note") or "",
+            "category": item.get("category") or "observe",
+        }
+    return result
 
 
 def get_ticker_info(ticker, conn=None):
@@ -514,12 +542,11 @@ def get_supply_chain(conn=None):
     return [dict(r) for r in rows]
 
 
-# ---- Price History (read-only from price_history.db) ----
+# ---- Price History ----
 
 def get_price_bars(ticker, days=120, conn=None):
     try:
-        c = conn or sqlite3.connect(PRICE_DB)
-        c.row_factory = sqlite3.Row
+        c = conn or get_conn()
         rows = c.execute("""SELECT * FROM daily_bars
             WHERE ticker=? ORDER BY date DESC LIMIT ?""",
             (ticker, days)).fetchall()
@@ -788,6 +815,29 @@ def get_valuation_model(ticker=None, conn=None):
     if not conn:
         c.close()
     return [dict(r) for r in rows]
+
+
+def get_data_freshness(conn=None):
+    c = conn or get_conn()
+    freshness = {}
+    queries = [
+        ("signals", "SELECT MAX(date) FROM signals"),
+        ("fundamentals", "SELECT MAX(updated_at) FROM fundamentals"),
+        ("valuation", "SELECT MAX(updated_at) FROM valuation"),
+        ("valuation_model", "SELECT MAX(updated_at) FROM valuation_model"),
+        ("daily_bars", "SELECT MAX(date) FROM daily_bars"),
+        ("insider_tx", "SELECT MAX(updated_at) FROM insider_tx"),
+        ("company_profiles", "SELECT MAX(updated_at) FROM company_profiles"),
+    ]
+    for name, query in queries:
+        try:
+            row = c.execute(query).fetchone()
+            freshness[name] = row[0] if row else None
+        except Exception:
+            freshness[name] = None
+    if not conn:
+        c.close()
+    return freshness
 
 
 def get_all_settings(conn=None):
