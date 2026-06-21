@@ -206,7 +206,11 @@ def analyze_with_llm(sections, api_key, api_url, model):
   "customers": ["客户类型/名称 — 关系描述", ...],
   "suppliers": ["供应商/上游依赖 — 替代性分析", ...],
   "risk_factors": "核心风险（按重要性排序）：1. 风险A 2. 风险B 3. 风险C ... （最多5条，每条一句话）",
-  "market_size": "市场空间：TAM/SAM规模、增长率、渗透率（引用年报数据）"
+  "market_size": "市场空间：TAM/SAM规模、增长率、渗透率（引用年报数据）",
+  "bear_case": "假设你是做空这家公司的对冲基金经理，用1-2段话写出最强看空论点。聚焦：收入集中度风险、技术被替代路径、产能过剩可能、估值泡沫、客户砍单风险",
+  "downgrade_triggers": ["可量化的降级条件1（如：连续2季度收入增速<15%）", "条件2", "条件3"],
+  "competitive_threats": "点名具体竞争对手和替代技术路径，分析时间窗口和威胁程度",
+  "valuation_risk": "当前估值隐含什么增长假设？如果假设落空，合理估值是多少？"
 }}
 
 要求：
@@ -350,6 +354,17 @@ def research_ticker(ticker, use_llm=False):
     )
 
     print(f"  ✓ Profile saved ({analysis_source})")
+
+    if profile.get("bear_case") or profile.get("downgrade_triggers"):
+        mdb.save_bear_thesis(ticker, {
+            "bear_case": profile.get("bear_case", ""),
+            "key_risks": profile.get("risk_factors", "").split("\n") if isinstance(profile.get("risk_factors"), str) else [],
+            "downgrade_triggers": profile.get("downgrade_triggers", []),
+            "competitive_threats": profile.get("competitive_threats", ""),
+            "valuation_risk": profile.get("valuation_risk", ""),
+        })
+        print(f"  ✓ Bear thesis saved")
+
     if profile.get("business_overview"):
         print(f"    Overview: {profile['business_overview'][:100]}...")
     if profile.get("products_services"):
