@@ -41,14 +41,9 @@ STATE_DIR = os.path.join(WORKSPACE, "state")
 STATE_FILE = os.path.join(STATE_DIR, "filing_state.json")
 CIK_CACHE = os.path.join(STATE_DIR, "10k_cache", "_cik_map.json")
 
-DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=61fded0e8252140ae2fcc761ff20f8cf6df9f75d1623c3be6a4cfadb6d9dc586"
-DINGTALK_SECRET = "SECd92d215a87b1a45bd6dd94ed0699bcefa5fc7b98e4ffc29226bf0fbf5a25ae71"
-
-MONITOR_TICKERS = [
-    "COHR", "LITE", "MU", "LEU", "PLAB", "CAMT",
-    "CRDO", "AXTI", "VICR",
-    "ADEA", "WLDN", "GSM", "SMR", "NNE", "MX",
-]
+import config_helper as cfg
+DINGTALK_WEBHOOK, DINGTALK_SECRET = cfg.get_dingtalk_config()
+MONITOR_TICKERS = cfg.get_watchlist_tickers()
 
 EVENT_TYPES = {
     "8-K":    {"importance": "HIGH",   "label": "重大事件"},
@@ -93,7 +88,7 @@ _ctx.verify_mode = ssl.CERT_NONE
 
 def _http_get(url, timeout=30):
     req = urllib.request.Request(url, headers={
-        "User-Agent": "keji.rx research@example.com",
+        "User-Agent": cfg.get_sec_email(),
         "Accept-Encoding": "identity",
     })
     resp = urllib.request.urlopen(req, context=_ctx, timeout=timeout)
