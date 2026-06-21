@@ -198,8 +198,8 @@ TLT_YIELD_APPROX = {
 }
 
 # 钉钉推送配置 DingTalk Push Config
-DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=61fded0e8252140ae2fcc761ff20f8cf6df9f75d1623c3be6a4cfadb6d9dc586"
-DINGTALK_SECRET = "SECd92d215a87b1a45bd6dd94ed0699bcefa5fc7b98e4ffc29226bf0fbf5a25ae71"
+import config_helper as cfg
+DINGTALK_WEBHOOK, DINGTALK_SECRET = cfg.get_dingtalk_config()
 
 # 红绿灯阈值 Traffic Light Thresholds
 TRAFFIC_LIGHT = {
