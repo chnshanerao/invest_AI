@@ -47,8 +47,8 @@ WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(WORKSPACE, "state")
 STATE_FILE = os.path.join(STATE_DIR, "trader_state.json")
 
-DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=61fded0e8252140ae2fcc761ff20f8cf6df9f75d1623c3be6a4cfadb6d9dc586"
-DINGTALK_SECRET = "SECd92d215a87b1a45bd6dd94ed0699bcefa5fc7b98e4ffc29226bf0fbf5a25ae71"
+import config_helper as cfg
+DINGTALK_WEBHOOK, DINGTALK_SECRET = cfg.get_dingtalk_config()
 
 BATCH_RATIOS = [0.30, 0.35, 0.35]
 
