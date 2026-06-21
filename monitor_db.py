@@ -171,6 +171,39 @@ CREATE TABLE IF NOT EXISTS daily_bars (
     volume REAL,
     UNIQUE(ticker, date)
 );
+
+CREATE TABLE IF NOT EXISTS bear_thesis (
+    ticker TEXT PRIMARY KEY,
+    bear_case TEXT,
+    key_risks TEXT,
+    downgrade_triggers TEXT,
+    competitive_threats TEXT,
+    valuation_risk TEXT,
+    trigger_status TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS thesis_warnings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker TEXT,
+    warning_type TEXT,
+    severity TEXT,
+    message TEXT,
+    evidence TEXT,
+    is_dismissed INTEGER DEFAULT 0,
+    created_at TEXT,
+    dismissed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT,
+    completed_at TEXT,
+    status TEXT,
+    stages TEXT,
+    trigger TEXT,
+    error TEXT
+);
 """
 
 
@@ -846,6 +879,98 @@ def get_all_settings(conn=None):
     if not conn:
         c.close()
     return {r["key"]: r["value"] for r in rows}
+
+
+# ---- Bear Thesis ----
+
+def save_bear_thesis(ticker, data, conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("""INSERT OR REPLACE INTO bear_thesis
+        (ticker, bear_case, key_risks, downgrade_triggers, competitive_threats, valuation_risk, updated_at)
+        VALUES (?,?,?,?,?,?,?)""",
+        (ticker, data.get("bear_case",""), json.dumps(data.get("key_risks",[]), ensure_ascii=False),
+         json.dumps(data.get("downgrade_triggers",[]), ensure_ascii=False),
+         data.get("competitive_threats",""), data.get("valuation_risk",""), now))
+    if not conn:
+        c.commit(); c.close()
+
+
+def get_bear_thesis(ticker, conn=None):
+    c = conn or get_conn()
+    row = c.execute("SELECT * FROM bear_thesis WHERE ticker=?", (ticker,)).fetchone()
+    if not conn:
+        c.close()
+    if not row:
+        return None
+    d = dict(row)
+    for k in ("key_risks", "downgrade_triggers"):
+        if d.get(k):
+            try: d[k] = json.loads(d[k])
+            except Exception: pass
+    return d
+
+
+def update_trigger_status(ticker, status, conn=None):
+    c = conn or get_conn()
+    c.execute("UPDATE bear_thesis SET trigger_status=? WHERE ticker=?",
+              (json.dumps(status, ensure_ascii=False), ticker))
+    if not conn:
+        c.commit(); c.close()
+
+
+# ---- Thesis Warnings ----
+
+def save_warning(ticker, warning_type, severity, message, evidence="", conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("""INSERT INTO thesis_warnings (ticker, warning_type, severity, message, evidence, created_at)
+        VALUES (?,?,?,?,?,?)""", (ticker, warning_type, severity, message, evidence, now))
+    if not conn:
+        c.commit(); c.close()
+
+
+def get_active_warnings(conn=None):
+    c = conn or get_conn()
+    rows = c.execute("SELECT * FROM thesis_warnings WHERE is_dismissed=0 ORDER BY created_at DESC").fetchall()
+    if not conn:
+        c.close()
+    return [dict(r) for r in rows]
+
+
+def dismiss_warning(warning_id, conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("UPDATE thesis_warnings SET is_dismissed=1, dismissed_at=? WHERE id=?", (now, warning_id))
+    if not conn:
+        c.commit(); c.close()
+
+
+# ---- Pipeline Runs ----
+
+def save_pipeline_run(started_at, status, stages=None, trigger="auto", error=None, conn=None):
+    c = conn or get_conn()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("""INSERT INTO pipeline_runs (started_at, completed_at, status, stages, trigger, error)
+        VALUES (?,?,?,?,?,?)""",
+        (started_at, now, status, json.dumps(stages or {}, ensure_ascii=False), trigger, error))
+    if not conn:
+        c.commit(); c.close()
+
+
+def get_pipeline_runs(limit=10, conn=None):
+    c = conn or get_conn()
+    rows = c.execute("SELECT * FROM pipeline_runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    if not conn:
+        c.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("stages"):
+            try: d["stages"] = json.loads(d["stages"])
+            except Exception: pass
+        result.append(d)
+    return result
 
 
 # ---- Dashboard aggregate ----
