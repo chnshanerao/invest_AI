@@ -22,6 +22,8 @@ import time
 import urllib.request
 
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state", "10k_cache")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import config_helper
 
 AI_SUPPLY_CHAIN_TICKERS = [
     "NVDA", "AMD", "INTC", "ASML", "TSM",
@@ -101,7 +103,7 @@ _ctx.verify_mode = ssl.CERT_NONE
 
 def _http_get(url, timeout=30):
     req = urllib.request.Request(url, headers={
-        "User-Agent": "keji.rx research@example.com",
+        "User-Agent": config_helper.get_sec_email(),
         "Accept-Encoding": "identity",
     })
     resp = urllib.request.urlopen(req, context=_ctx, timeout=timeout)
