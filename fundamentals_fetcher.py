@@ -21,6 +21,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import monitor_db as mdb
+import config_helper
 
 _ctx = ssl.create_default_context()
 _ctx.check_hostname = False
@@ -31,7 +32,7 @@ CIK_CACHE = os.path.join(mdb.STATE_DIR, "10k_cache", "_cik_map.json")
 
 def _http_get(url, timeout=30):
     req = urllib.request.Request(url, headers={
-        "User-Agent": "keji.rx research@example.com",
+        "User-Agent": config_helper.get_sec_email(),
         "Accept-Encoding": "identity",
     })
     return urllib.request.urlopen(req, context=_ctx, timeout=timeout).read()
