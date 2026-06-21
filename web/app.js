@@ -44,6 +44,7 @@ $$('.tab').forEach(btn=>{
 async function loadDashboard(){
   dashData = await api('/api/dashboard');
   renderFreshness();
+  renderHealthWarnings();
   renderMacro(dashData.macro);
   renderStats(dashData.stats);
   renderCards(dashData.watchlist);
@@ -66,6 +67,32 @@ async function renderFreshness(){
     bar.innerHTML='<span class="fresh-label">数据新鲜度:</span>'+items.join('');
   }catch(e){}
 }
+
+async function renderHealthWarnings(){
+  try{
+    const warnings=await api('/api/health');
+    const el=$('#health-warnings');
+    if(!el)return;
+    if(!warnings||!warnings.length){el.innerHTML='';el.classList.add('hidden');return;}
+    const high=warnings.filter(w=>w.severity==='high');
+    el.classList.remove('hidden');
+    el.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-weight:700;color:var(--red)">⚠ ${warnings.length}个预警</span>
+        ${high.length?`<span style="color:var(--red);font-size:12px">(${high.length}个高危)</span>`:''}
+        ${warnings.slice(0,5).map(w=>`
+          <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:${w.severity==='high'?'var(--red-bg)':'var(--yellow-bg)'}">
+            ${w.ticker}: ${w.message}
+            <span onclick="dismissWarning(${w.id})" style="cursor:pointer;margin-left:4px;color:var(--text2)">✕</span>
+          </span>
+        `).join('')}
+      </div>`;
+  }catch(e){}
+}
+window.dismissWarning=async function(id){
+  await api('/api/health/dismiss',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  renderHealthWarnings();
+};
 
 function renderMacro(m){
   const bar=$('#macro-bar');
@@ -211,7 +238,7 @@ async function openResearch(ticker){
 
   const d=await api(`/api/ticker/${ticker}`);
   renderResearchHeader(d.info,d.valuation,d.thesis);
-  renderThesis(d.thesis,d.supply_chain);
+  renderThesis(d.thesis,d.supply_chain,d.bear_thesis);
   renderCompanyProfile(d.company_profile);
   renderValuationModelPanel(d.valuation_model);
   renderFundamentalsCharts(d.fundamentals);
@@ -242,7 +269,7 @@ function renderResearchHeader(info,val,thesis){
   `;
 }
 
-function renderThesis(thesis,supply){
+function renderThesis(thesis,supply,bear){
   const p=$('#thesis-panel');
   if(!thesis){p.innerHTML='<p style="color:var(--text2)">暂无研究论点</p>';return;}
   let catalysts='';
@@ -256,12 +283,40 @@ function renderThesis(thesis,supply){
     supplyHtml=`<div class="thesis-section"><div class="thesis-label">10-K供应链扫描</div><div class="thesis-text">${supply.map(s=>`${s.mention_type}: ${s.mention_count}次`).join(' | ')}</div></div>`;
   }
 
+  let bearHtml='';
+  if(bear&&bear.bear_case){
+    let triggers='';
+    const dt=bear.downgrade_triggers;
+    if(dt&&dt.length){
+      const ts=bear.trigger_status;
+      let parsed=null;
+      try{parsed=typeof ts==='string'?JSON.parse(ts):ts;}catch(e){}
+      triggers=`<div style="margin-top:8px"><b style="font-size:12px">降级触发条件:</b><ul style="list-style:none;padding:0;margin:4px 0">${dt.map((t,i)=>{
+        const fired=parsed&&parsed[i];
+        const icon=fired?'🔴':'🟢';
+        return `<li style="font-size:12px;padding:2px 0">${icon} ${t}</li>`;
+      }).join('')}</ul></div>`;
+    }
+    bearHtml=`
+    <div style="margin-top:16px;padding:14px;background:rgba(248,81,73,0.06);border:1px solid rgba(248,81,73,0.25);border-radius:8px">
+      <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">魔鬼代言人 — Bear Case</div>
+      <div class="thesis-text" style="color:var(--text)">${bear.bear_case}</div>
+      ${bear.competitive_threats?`<div style="margin-top:8px"><b style="font-size:12px;color:var(--orange)">竞争威胁:</b><div class="thesis-text" style="font-size:12px">${bear.competitive_threats}</div></div>`:''}
+      ${bear.valuation_risk?`<div style="margin-top:8px"><b style="font-size:12px;color:var(--yellow)">估值风险:</b><div class="thesis-text" style="font-size:12px">${bear.valuation_risk}</div></div>`:''}
+      ${triggers}
+      <div style="font-size:10px;color:var(--text2);margin-top:6px">更新: ${bear.updated_at||'—'}</div>
+    </div>`;
+  } else {
+    bearHtml=`<div style="margin-top:12px;padding:8px 12px;background:var(--bg3);border-radius:6px;font-size:12px;color:var(--text2)">⚠ 无看空分析 — 运行"采集:公司研究"生成 Bear Case</div>`;
+  }
+
   p.innerHTML=`
     <div class="thesis-section"><div class="thesis-label">投资逻辑</div><div class="thesis-text">${thesis.thesis||'—'}</div></div>
     <div class="thesis-section"><div class="thesis-label">护城河</div><div class="thesis-text">${thesis.moat||'—'}</div></div>
     <div class="thesis-section"><div class="thesis-label">催化剂</div>${catalysts||'<div class="thesis-text">—</div>'}</div>
     <div class="thesis-section"><div class="thesis-label">风险</div><div class="thesis-text risk-text">${thesis.risks||'—'}</div></div>
     ${supplyHtml}
+    ${bearHtml}
   `;
 }
 
@@ -787,6 +842,7 @@ async function loadWatchlist(){
     </tr>`;
   }).join('');
   loadSettings();
+  loadPipeline();
 }
 
 ['fundamentals','trader','research','valuation','insider','filing'].forEach(mod=>{
@@ -851,6 +907,11 @@ async function loadSettings(){
     <div class="sf-group"><label>LLM API Key</label><input type="password" id="sf-apikey" value="${s.llm_api_key||''}" placeholder="sk-..."></div>
     <div class="sf-group"><label>API URL</label><input type="text" id="sf-apiurl" value="${s.llm_api_url||'https://api.anthropic.com/v1'}" placeholder="https://api.anthropic.com/v1"></div>
     <div class="sf-group"><label>Model</label><input type="text" id="sf-model" value="${s.llm_model||'claude-sonnet-4-20250514'}" placeholder="claude-sonnet-4-20250514"></div>
+    <div class="sf-group"><label>钉钉 Webhook</label><input type="text" id="sf-dingtalk-webhook" value="${s.dingtalk_webhook||''}" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."></div>
+    <div class="sf-group"><label>钉钉 Secret</label><input type="password" id="sf-dingtalk-secret" value="${s.dingtalk_secret||''}" placeholder="SEC..."></div>
+    <div class="sf-group"><label>SEC Email (User-Agent)</label><input type="text" id="sf-sec-email" value="${s.sec_email||''}" placeholder="name email@example.com"></div>
+    <div class="sf-group"><label>自动更新</label><select id="sf-auto-update"><option value="0" ${s.auto_update_enabled!=='1'?'selected':''}>关闭</option><option value="1" ${s.auto_update_enabled==='1'?'selected':''}>开启</option></select></div>
+    <div class="sf-group"><label>更新间隔(小时)</label><input type="number" id="sf-update-interval" value="${s.update_interval_hours||'6'}" min="1" max="24"></div>
     <div class="form-actions"><button class="btn btn-primary" onclick="saveSettings()">保存设置</button></div>
   `;
 }
@@ -860,9 +921,44 @@ window.saveSettings=async function(){
     llm_api_key:$('#sf-apikey').value.trim(),
     llm_api_url:$('#sf-apiurl').value.trim(),
     llm_model:$('#sf-model').value.trim(),
+    dingtalk_webhook:$('#sf-dingtalk-webhook').value.trim(),
+    dingtalk_secret:$('#sf-dingtalk-secret').value.trim(),
+    sec_email:$('#sf-sec-email').value.trim(),
+    auto_update_enabled:$('#sf-auto-update').value,
+    update_interval_hours:$('#sf-update-interval').value,
   };
   await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   toast('设置已保存');
+};
+
+async function loadPipeline(){
+  try{
+    const s=await api('/api/pipeline/status');
+    const el=$('#pipeline-panel');
+    if(!el)return;
+    const last=s.last_run;
+    let lastHtml='<span style="color:var(--text2)">从未运行</span>';
+    if(last){
+      const stages=last.stages||{};
+      const dots=Object.entries(stages).map(([k,v])=>{
+        const color=v.ok?'var(--green)':'var(--red)';
+        return `<span style="color:${color};font-weight:600" title="${k}: ${v.time||0}s">${k} ${v.ok?'✓':'✗'}</span>`;
+      }).join(' | ');
+      lastHtml=`<span style="font-size:12px">${last.started_at} — ${last.status} — ${dots}</span>`;
+    }
+    el.innerHTML=`
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:12px;color:var(--text2)">自动更新: <b style="color:${s.auto_update_enabled?'var(--green)':'var(--text2)}'}">${s.auto_update_enabled?'开启':'关闭'}</b> (每${s.update_interval_hours}h)</span>
+        <button class="btn btn-primary" onclick="runPipeline()">立即运行 Pipeline</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2)">上次运行: ${lastHtml}</div>
+    `;
+  }catch(e){}
+}
+window.runPipeline=async function(){
+  toast('Pipeline 已启动...');
+  await api('/api/pipeline/run',{method:'POST'});
+  setTimeout(loadPipeline,5000);
 };
 
 loadDashboard();
