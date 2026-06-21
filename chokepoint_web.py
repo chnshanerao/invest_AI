@@ -51,6 +51,7 @@ async def api_ticker(request):
     ).fetchall()
     company = mdb.get_company_profile(ticker, conn=conn)
     vm = mdb.get_valuation_model(ticker, conn=conn)
+    bear = mdb.get_bear_thesis(ticker, conn=conn)
 
     conn.close()
     if company and company.get("raw_sections"):
@@ -71,6 +72,7 @@ async def api_ticker(request):
         "supply_chain": [dict(r) for r in supply],
         "company_profile": company,
         "valuation_model": vm,
+        "bear_thesis": bear,
     })
 
 
@@ -195,6 +197,49 @@ async def api_settings_post(request):
     return json_response({"ok": True})
 
 
+async def api_health(request):
+    warnings = mdb.get_active_warnings()
+    return json_response(warnings)
+
+
+async def api_health_dismiss(request):
+    body = await request.json()
+    wid = body.get("id")
+    if wid:
+        mdb.dismiss_warning(wid)
+    return json_response({"ok": True})
+
+
+async def api_pipeline_status(request):
+    runs = mdb.get_pipeline_runs(limit=1)
+    last = runs[0] if runs else None
+    import config_helper as cfg
+    enabled = cfg.get_config("auto_update_enabled", "0")
+    interval = cfg.get_config("update_interval_hours", "6")
+    return json_response({
+        "last_run": last,
+        "auto_update_enabled": enabled == "1",
+        "update_interval_hours": int(interval),
+    })
+
+
+async def api_pipeline_run(request):
+    import threading
+    def _run():
+        try:
+            import scheduler
+            scheduler.run_pipeline("manual")
+        except Exception as e:
+            print(f"Pipeline error: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+    return json_response({"ok": True, "message": "Pipeline started"})
+
+
+async def api_pipeline_history(request):
+    runs = mdb.get_pipeline_runs(limit=20)
+    return json_response(runs)
+
+
 async def index_handler(request):
     return web.FileResponse(os.path.join(WEB_DIR, "index.html"))
 
@@ -217,9 +262,20 @@ def create_app():
     app.router.add_get("/api/freshness", api_freshness)
     app.router.add_get("/api/settings", api_settings_get)
     app.router.add_post("/api/settings", api_settings_post)
+    app.router.add_get("/api/health", api_health)
+    app.router.add_post("/api/health/dismiss", api_health_dismiss)
+    app.router.add_get("/api/pipeline/status", api_pipeline_status)
+    app.router.add_post("/api/pipeline/run", api_pipeline_run)
+    app.router.add_get("/api/pipeline/history", api_pipeline_history)
 
     app.router.add_get("/", index_handler)
     app.router.add_static("/web/", WEB_DIR, show_index=False)
+
+    try:
+        import scheduler
+        scheduler.start_background(app)
+    except Exception as e:
+        print(f"[WARN] Scheduler not started: {e}")
 
     return app
 
